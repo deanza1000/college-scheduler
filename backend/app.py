@@ -52,6 +52,7 @@ class SchedulerAPIHandler(SimpleHTTPRequestHandler):
                 course_ids = data.get('course_ids', [])
                 exclude_days = data.get('exclude_days', [])
                 preferred_num_days = data.get('preferred_num_days', None)
+                preferred_start_times = data.get('preferred_start_times', None)
 
                 if preferred_num_days:
                     try:
@@ -64,7 +65,8 @@ class SchedulerAPIHandler(SimpleHTTPRequestHandler):
                     semester=semester,
                     course_ids=course_ids,
                     exclude_days=exclude_days,
-                    preferred_num_days=preferred_num_days
+                    preferred_num_days=preferred_num_days,
+                    preferred_start_times=preferred_start_times
                 )
 
                 self.send_response(200)

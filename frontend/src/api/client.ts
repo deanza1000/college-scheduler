@@ -9,6 +9,7 @@ export interface ScheduleRequest {
   course_ids: string[];
   exclude_days: string[];
   preferred_num_days: number | null;
+  preferred_start_times?: Record<string, string>;
 }
 
 export interface Event {

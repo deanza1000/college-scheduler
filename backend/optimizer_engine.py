@@ -5,7 +5,7 @@ from typing import Dict, List, Any, Tuple
 import copy
 
 class CourseSchedulerSA:
-    def __init__(self, courses_data: Dict[str, Dict[str, Dict[str, List[Dict[str, Any]]]]], weights: Dict[str, float], selected_course_ids: List[str] = None, exclude_days: List[str] = None, preferred_num_days: int = None):
+    def __init__(self, courses_data: Dict[str, Dict[str, Dict[str, List[Dict[str, Any]]]]], weights: Dict[str, float], selected_course_ids: List[str] = None, exclude_days: List[str] = None, preferred_num_days: int = None, preferred_start_times: Dict[str, str] = None):
         """
         Initialize the Simulated Annealing engine.
         
@@ -15,6 +15,7 @@ class CourseSchedulerSA:
         :param selected_course_ids: Optional list of course IDs to schedule. If None, schedules all courses in courses_data.
         :param exclude_days: Optional list of day strings to penalize (e.g. ["א", "ה"]).
         :param preferred_num_days: Optional target number of active campus days.
+        :param preferred_start_times: Optional mapping of day string to preferred start time (HH:MM).
         """
         if selected_course_ids:
             self.courses_data = {k: v for k, v in courses_data.items() if k in selected_course_ids}
@@ -24,6 +25,7 @@ class CourseSchedulerSA:
         self.weights = weights
         self.exclude_days = exclude_days or []
         self.preferred_num_days = preferred_num_days
+        self.preferred_start_times = preferred_start_times or {}
         self.course_ids = list(self.courses_data.keys())
 
     def time_to_minutes(self, t_str: str) -> int:
@@ -98,7 +100,8 @@ class CourseSchedulerSA:
             
         total_gap_minutes = 0
         total_days_on_campus = len(daily_schedules)
-        early_classes = 0
+        total_start_time_penalty = 0.0
+        preferred_times = self.preferred_start_times
         
         for day, times in daily_schedules.items():
             times.sort() # sort by start time
@@ -106,15 +109,24 @@ class CourseSchedulerSA:
                 gap = times[i+1][0] - times[i][1]
                 if gap > 0:
                     total_gap_minutes += gap
-            if times and times[0][0] <= self.time_to_minutes("08:30"):
-                early_classes += 1
+                    
+            if times:
+                actual_start = times[0][0]
+                preferred_start_str = preferred_times.get(day, "08:30")
+                preferred_start = self.time_to_minutes(preferred_start_str)
+                
+                deviation_hours = (actual_start - preferred_start) / 60.0
+                if deviation_hours < 0:
+                    total_start_time_penalty += (-deviation_hours) ** 2
+                elif deviation_hours > 0:
+                    total_start_time_penalty += 0.5 * (deviation_hours ** 2)
 
         if "gaps" in self.weights:
             soft_penalty += self.weights["gaps"] * (total_gap_minutes ** 2)
         if "days_on_campus" in self.weights:
             soft_penalty += self.weights["days_on_campus"] * (total_days_on_campus ** 2)
-        if "early_classes" in self.weights:
-            soft_penalty += self.weights["early_classes"] * (early_classes ** 2)
+        if "start_time_deviation" in self.weights:
+            soft_penalty += self.weights["start_time_deviation"] * total_start_time_penalty
 
         # Excluded-days penalty: penalize each session that falls on an excluded day
         if self.exclude_days and "exclude_days" in self.weights:

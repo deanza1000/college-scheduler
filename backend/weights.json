@@ -1,7 +1,7 @@
 {
     "gaps": 1.0,
     "days_on_campus": 10.0,
-    "early_classes": 5.0,
+    "start_time_deviation": 5.0,
     "exclude_days": 100000.0,
     "preferred_num_days": 100000.0
 }

@@ -3,7 +3,7 @@ import json
 from generate_schedule import get_courses_for_semester, WEIGHTS_PATH
 from optimizer_engine import CourseSchedulerSA
 
-def run_scheduler(year: str, semester: str, course_ids: list, exclude_days: list = None, preferred_num_days: int = None):
+def run_scheduler(year: str, semester: str, course_ids: list, exclude_days: list = None, preferred_num_days: int = None, preferred_start_times: dict = None):
     courses_data = get_courses_for_semester(year, semester)
     if not courses_data:
         return {"error": f"Could not load data for year {year}, semester {semester}."}
@@ -36,6 +36,7 @@ def run_scheduler(year: str, semester: str, course_ids: list, exclude_days: list
         selected_course_ids=valid_course_ids,
         exclude_days=exclude_days or None,
         preferred_num_days=preferred_num_days,
+        preferred_start_times=preferred_start_times,
     )
     
     best_state, best_energy, has_hard_violations = engine.optimize(

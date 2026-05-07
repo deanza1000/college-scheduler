@@ -10,6 +10,8 @@ interface PreferenceToggleProps {
   onChangeMaxDays: (days: number) => void;
   excludedDays: string[];
   onChangeExcludedDays: (days: string[]) => void;
+  preferredStartTimes: Record<string, string>;
+  onChangePreferredStartTimes: (times: Record<string, string>) => void;
 }
 
 const DAYS_OF_WEEK = [
@@ -26,7 +28,9 @@ export function PreferenceToggle({
   maxDays,
   onChangeMaxDays,
   excludedDays,
-  onChangeExcludedDays
+  onChangeExcludedDays,
+  preferredStartTimes,
+  onChangePreferredStartTimes
 }: PreferenceToggleProps) {
   
   const toggleExcludeDay = (dayId: string) => {
@@ -115,6 +119,30 @@ export function PreferenceToggle({
             </div>
           </div>
         )}
+      </div>
+
+      <div className="mt-8 pt-6 border-t border-border">
+        <label className="block text-sm font-medium text-textSecondary mb-4">
+          בחר שעת התחלה מועדפת לכל יום (אופציונלי):
+        </label>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {DAYS_OF_WEEK.map(day => (
+            <div key={day.id} className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">{day.label}</span>
+              <input 
+                type="time" 
+                value={preferredStartTimes[day.id] || "08:30"}
+                onChange={(e) => {
+                  onChangePreferredStartTimes({
+                    ...preferredStartTimes,
+                    [day.id]: e.target.value
+                  });
+                }}
+                className="p-2 border border-border rounded-md bg-surfaceHighlight focus:border-primary outline-none transition-colors"
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

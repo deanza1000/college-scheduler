@@ -17,6 +17,7 @@ function App() {
   const [mode, setMode] = useState<PreferenceMode>('A');
   const [maxDays, setMaxDays] = useState(4);
   const [excludedDays, setExcludedDays] = useState<string[]>([]);
+  const [preferredStartTimes, setPreferredStartTimes] = useState<Record<string, string>>({});
 
   // Solving State
   const [isGenerating, setIsGenerating] = useState(false);
@@ -38,7 +39,8 @@ function App() {
       semester,
       course_ids: selectedCourseIds,
       exclude_days: mode === 'B' ? excludedDays : [],
-      preferred_num_days: mode === 'A' ? maxDays : null
+      preferred_num_days: mode === 'A' ? maxDays : null,
+      preferred_start_times: preferredStartTimes
     };
 
     try {
@@ -86,6 +88,8 @@ function App() {
               onChangeMaxDays={setMaxDays}
               excludedDays={excludedDays}
               onChangeExcludedDays={setExcludedDays}
+              preferredStartTimes={preferredStartTimes}
+              onChangePreferredStartTimes={setPreferredStartTimes}
             />
 
             <div className="card p-6 flex flex-col items-center">
