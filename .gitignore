@@ -1,3 +1,4 @@
 /__pycache__
 /.pytest_cache
 /db_service
+/backend/test_data.json
