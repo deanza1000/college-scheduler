@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { CourseSelectionHeader } from './components/CourseSelectionHeader';
 import { PreferenceToggle } from './components/PreferenceToggle';
 import type { PreferenceMode } from './components/PreferenceToggle';
@@ -23,6 +24,7 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [results, setResults] = useState<ScheduleResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     if (selectedCourseIds.length === 0) {
@@ -40,7 +42,8 @@ function App() {
       course_ids: selectedCourseIds,
       exclude_days: mode === 'B' ? excludedDays : [],
       preferred_num_days: mode === 'A' ? maxDays : null,
-      preferred_start_times: preferredStartTimes
+      preferred_start_times: preferredStartTimes,
+      turnstile_token: turnstileToken
     };
 
     try {
@@ -100,9 +103,22 @@ function App() {
                 </div>
               )}
 
+              {/* Cloudflare Turnstile Bot Protection */}
+              <div className="w-full flex justify-center my-3 overflow-hidden" dir="ltr">
+                <Turnstile
+                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                  onSuccess={(token) => setTurnstileToken(token)}
+                  onError={() => setError("אימות האבטחה נכשל. אנא נסה שוב.")}
+                  options={{
+                    theme: 'auto',
+                    size: 'flexible'
+                  }}
+                />
+              </div>
+
               <button 
                 onClick={handleGenerate}
-                disabled={isGenerating || selectedCourseIds.length === 0}
+                disabled={isGenerating || selectedCourseIds.length === 0 || !turnstileToken}
                 className="w-full btn-primary py-3 text-lg flex items-center justify-center gap-2"
               >
                 {isGenerating ? (
@@ -114,11 +130,15 @@ function App() {
                   "צור מערכת שעות"
                 )}
               </button>
-              {selectedCourseIds.length === 0 && (
+              {selectedCourseIds.length === 0 ? (
                 <p className="text-xs text-textSecondary mt-2 flex items-center gap-1">
                   <Info size={12} /> אנא בחר קורסים לפני יצירת מערכת
                 </p>
-              )}
+              ) : !turnstileToken ? (
+                <p className="text-xs text-amber-500 mt-2 flex items-center gap-1">
+                  <Info size={12} /> ממתין לאימות אבטחה (Cloudflare)...
+                </p>
+              ) : null}
             </div>
           </div>
 

@@ -10,6 +10,7 @@ export interface ScheduleRequest {
   exclude_days: string[];
   preferred_num_days: number | null;
   preferred_start_times?: Record<string, string>;
+  turnstile_token?: string | null;
 }
 
 export interface Event {
@@ -33,8 +34,11 @@ export interface ScheduleResponse {
   error?: string;
 }
 
+// Support dynamic API targeting when deployed, falling back to empty string for relative proxying
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
 export async function fetchCourses(): Promise<Course[]> {
-  const res = await fetch('/api/courses');
+  const res = await fetch(`${API_BASE}/api/courses`);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Failed to fetch courses: ${text}`);
@@ -44,7 +48,7 @@ export async function fetchCourses(): Promise<Course[]> {
 
 export async function generateSchedule(payload: ScheduleRequest): Promise<ScheduleResponse> {
   try {
-    const res = await fetch('/api/schedule', {
+    const res = await fetch(`${API_BASE}/api/schedule`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -54,7 +58,7 @@ export async function generateSchedule(payload: ScheduleRequest): Promise<Schedu
     
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.error || 'Server error');
+      throw new Error(data.detail || data.error || 'Server error');
     }
     return data;
   } catch (err: any) {

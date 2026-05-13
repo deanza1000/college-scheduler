@@ -1,16 +1,14 @@
 import sys
 import json
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'db_service'))
-from db_sync_service import parse_courses_to_json
+from data_service import parse_courses_to_json
 from optimizer_engine import CourseSchedulerSA
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "db_service", "braude.sqlite")
 WEIGHTS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "weights.json")
 
 def get_courses_for_semester(year: str, semester: str) -> dict:
     """
-    Query the SQLite DB via parse_courses_to_json and return the courses dict
+    Query the cached SQLite DB via parse_courses_to_json statelessly and return the courses dict
     for the given year and semester.
     Semester should be 'A' or 'B' (mapped to 'א' / 'ב').
     """
@@ -20,7 +18,7 @@ def get_courses_for_semester(year: str, semester: str) -> dict:
         print(f"Error: Invalid semester '{semester}'. Use 'A' for א or 'B' for ב.")
         return {}
 
-    all_data = json.loads(parse_courses_to_json(DB_PATH))
+    all_data = json.loads(parse_courses_to_json())
 
     if year not in all_data:
         print(f"Error: Year {year} not found in database. Available: {list(all_data.keys())}")
