@@ -11,8 +11,8 @@ import { Calendar, Loader2, AlertTriangle, Info } from 'lucide-react';
 function App() {
   // Course Header State
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
-  const [year, setYear] = useState('2026');
-  const [semester, setSemester] = useState('B');
+  const [year, setYear] = useState('');
+  const [semester, setSemester] = useState('');
 
   // Preference State
   const [mode, setMode] = useState<PreferenceMode>('A');

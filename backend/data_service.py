@@ -21,7 +21,8 @@ CACHE_TTL_SECONDS = 3600  # 1 hour cache
 _IN_MEMORY_CACHE = {
     "timestamp": 0,
     "json_data": None,
-    "courses_list": None
+    "courses_list": None,
+    "courses_by_term": {}
 }
 
 def get_cached_db_path() -> str:
@@ -53,6 +54,7 @@ def get_cached_db_path() -> str:
                 logger.info("Successfully cached remote SQLite database to ephemeral storage.")
                 # Invalidate in-memory cache
                 _IN_MEMORY_CACHE["timestamp"] = 0
+                _IN_MEMORY_CACHE["courses_by_term"] = {}
         except Exception as e:
             logger.error(f"Failed to fetch upstream database: {e}")
             # Fallback: if cached DB exists but expired, keep using it rather than crashing
@@ -147,29 +149,78 @@ def parse_courses_to_json(db_path: str = None) -> str:
     
     return json_result
 
-def get_all_courses() -> list:
+def get_all_courses(year: str = None, semester: str = None) -> dict:
     """
-    Returns a list of distinct courses ordered by name for the GET /api/courses route.
+    Returns a dict containing the list of distinct courses for the specified year/semester,
+    along with the resolved year, semester, and available years.
+    If year/semester are not provided, statelessly determines the latest available year/semester.
     """
     current_time = time.time()
-    if _IN_MEMORY_CACHE["courses_list"] and (current_time - _IN_MEMORY_CACHE["timestamp"] < CACHE_TTL_SECONDS):
-        return _IN_MEMORY_CACHE["courses_list"]
+    cache_key = f"{year}_{semester}"
+    if cache_key in _IN_MEMORY_CACHE["courses_by_term"] and (current_time - _IN_MEMORY_CACHE["timestamp"] < CACHE_TTL_SECONDS):
+        return _IN_MEMORY_CACHE["courses_by_term"][cache_key]
 
+    # Ensure DB is cached and parse JSON to get available years/semesters metadata statelessly
+    json_str = parse_courses_to_json()
+    all_data = json.loads(json_str)
+    
+    available_years = sorted([y for y in all_data.keys() if y.isdigit()], key=int)
+    if not available_years:
+        available_years = ["2026"]
+        
+    # Determine target year
+    target_year = year
+    if not target_year or target_year not in all_data:
+        target_year = available_years[-1] if available_years else "2026"
+        
+    # Determine target semester
+    target_semester = semester
+    
+    if not target_semester:
+        # Find latest semester in target_year
+        sems = all_data.get(target_year, {}).keys()
+        if "ב" in sems:
+            target_semester = "B"
+        elif "א" in sems:
+            target_semester = "A"
+        elif "קיץ" in sems:
+            target_semester = "Summer"
+        else:
+            target_semester = "B"
+            
+    # Map target_semester to Hebrew for DB querying
+    sem_hebrew = {"A": "א", "B": "ב", "SUMMER": "קיץ"}.get(target_semester.upper(), "ב")
+    
+    # Query distinct courses from SQLite for this year and semester (including annual 'שנתי' courses)
     path_to_use = get_cached_db_path()
-    if not os.path.exists(path_to_use):
-        return []
-
-    conn = sqlite3.connect(path_to_use)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT DISTINCT course_id as id, name FROM courses ORDER BY name")
-        rows = cursor.fetchall()
-        courses = [{"id": str(row["id"]), "name": row["name"] or str(row["id"])} for row in rows]
-        _IN_MEMORY_CACHE["courses_list"] = courses
-        return courses
-    except Exception as e:
-        logger.error(f"Failed to query courses list: {e}")
-        return []
-    finally:
-        conn.close()
+    courses = []
+    if os.path.exists(path_to_use):
+        conn = sqlite3.connect(path_to_use)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        try:
+            query = """
+                SELECT DISTINCT c.course_id as id, c.name 
+                FROM courses c
+                JOIN instances i ON c.course_id = i.course_id AND c.year = i.year
+                JOIN sessions s ON i.instance_id = s.instance_id
+                WHERE c.year = ? AND s.semester IN (?, 'שנתי')
+                ORDER BY c.name
+            """
+            cursor.execute(query, (target_year, sem_hebrew))
+            rows = cursor.fetchall()
+            courses = [{"id": str(row["id"]), "name": row["name"] or str(row["id"])} for row in rows]
+        except Exception as e:
+            logger.error(f"Failed to query distinct courses for {target_year} {target_semester}: {e}")
+        finally:
+            conn.close()
+            
+    result = {
+        "courses": courses,
+        "year": target_year,
+        "semester": target_semester,
+        "available_years": available_years
+    }
+    
+    _IN_MEMORY_CACHE["courses_by_term"][cache_key] = result
+    return result

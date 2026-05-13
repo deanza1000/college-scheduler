@@ -22,13 +22,45 @@ export function CourseSelectionHeader({
   onChangeSemester
 }: CourseSelectionHeaderProps) {
   const [courses, setCourses] = useState<Course[]>([]);
+  const [availableYears, setAvailableYears] = useState<string[]>(['2026']);
+  const [courseNameCache, setCourseNameCache] = useState<Record<string, string>>({});
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const lastFetchedRef = useRef({ year: '', semester: '' });
 
   useEffect(() => {
-    fetchCourses().then(setCourses);
-  }, []);
+    // Avoid redundant fetches if we have already fetched for the current specific term
+    if (year && semester && lastFetchedRef.current.year === year && lastFetchedRef.current.semester === semester) {
+      return;
+    }
+
+    fetchCourses(year || undefined, semester || undefined)
+      .then(res => {
+        lastFetchedRef.current = { year: res.year, semester: res.semester };
+        setCourses(res.courses);
+        
+        // Update cache of course names so selected IDs from other terms still render beautifully
+        setCourseNameCache(prev => {
+          const next = { ...prev };
+          res.courses.forEach(c => {
+            next[c.id] = c.name;
+          });
+          return next;
+        });
+
+        if (res.available_years && res.available_years.length > 0) {
+          setAvailableYears(res.available_years);
+        }
+        if (year !== res.year) {
+          onChangeYear(res.year);
+        }
+        if (semester !== res.semester) {
+          onChangeSemester(res.semester);
+        }
+      })
+      .catch(err => console.error("Failed to fetch courses:", err));
+  }, [year, semester, onChangeYear, onChangeSemester]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -38,7 +70,7 @@ export function CourseSelectionHeader({
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [wrapperRef]);
+  }, []);
 
   const toggleCourse = (id: string) => {
     if (selectedCourseIds.includes(id)) {
@@ -69,10 +101,10 @@ export function CourseSelectionHeader({
             onClick={() => setIsOpen(true)}
           >
             {selectedCourseIds.map(id => {
-              const course = courses.find(c => c.id === id);
+              const name = courseNameCache[id] || id;
               return (
                 <span key={id} className="bg-primary/20 text-primary-light px-2 py-1 rounded-md text-sm flex items-center gap-1 border border-primary/30">
-                  {course ? course.name : id}
+                  {name}
                   <button 
                     onClick={(e) => { e.stopPropagation(); removeCourse(id); }}
                     className="hover:text-danger hover:bg-danger/10 rounded-full p-0.5 transition-colors"
@@ -98,7 +130,7 @@ export function CourseSelectionHeader({
           {isOpen && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-surfaceHighlight border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
               {filteredCourses.length === 0 ? (
-                <div className="p-3 text-sm text-textSecondary text-center">לא נמצאו קורסים</div>
+                <div className="p-3 text-sm text-textSecondary text-center">לא נמצאו קורסים רלוונטיים לסמסטר זה</div>
               ) : (
                 filteredCourses.map(course => {
                   const isSelected = selectedCourseIds.includes(course.id);
@@ -134,9 +166,9 @@ export function CourseSelectionHeader({
             onChange={(e) => onChangeYear(e.target.value)}
             dir="rtl"
           >
-            <option value="2024">2024</option>
-            <option value="2025">2025</option>
-            <option value="2026">2026</option>
+            {availableYears.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
           </select>
         </div>
         <div className="flex-1">

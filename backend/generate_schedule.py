@@ -9,27 +9,29 @@ WEIGHTS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "weights
 def get_courses_for_semester(year: str, semester: str) -> dict:
     """
     Query the cached SQLite DB via parse_courses_to_json statelessly and return the courses dict
-    for the given year and semester.
-    Semester should be 'A' or 'B' (mapped to 'א' / 'ב').
+    for the given year and semester. Includes annual ('שנתי') courses.
     """
-    semester_map = {"A": "א", "B": "ב"}
-    sem_hebrew = semester_map.get(semester.upper())
-    if not sem_hebrew:
-        print(f"Error: Invalid semester '{semester}'. Use 'A' for א or 'B' for ב.")
-        return {}
+    semester_map = {"A": "א", "B": "ב", "SUMMER": "קיץ"}
+    sem_hebrew = semester_map.get(semester.upper(), "ב")
 
     all_data = json.loads(parse_courses_to_json())
 
     if year not in all_data:
         print(f"Error: Year {year} not found in database. Available: {list(all_data.keys())}")
         return {}
-    if sem_hebrew not in all_data[year]:
-        print(f"Error: Semester {sem_hebrew} not found for year {year}. Available: {list(all_data[year].keys())}")
-        return {}
 
-    # The DB stores course_id as int keys; convert to strings for consistency
-    raw = all_data[year][sem_hebrew]
-    return {str(k): v for k, v in raw.items()}
+    res = {}
+    if sem_hebrew in all_data[year]:
+        for k, v in all_data[year][sem_hebrew].items():
+            res[str(k)] = v
+
+    # Merge annual ('שנתי') courses if present
+    if "שנתי" in all_data[year]:
+        for k, v in all_data[year]["שנתי"].items():
+            if str(k) not in res:
+                res[str(k)] = v
+
+    return res
 
 
 def main():

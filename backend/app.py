@@ -70,13 +70,14 @@ def verify_turnstile(token: Optional[str]) -> bool:
         return False
 
 @app.get("/api/courses", summary="Get distinct available courses")
-def get_courses():
+def get_courses(year: Optional[str] = None, semester: Optional[str] = None):
     """
-    Statelessly retrieves distinct available courses from the upstream database cache.
+    Statelessly retrieves distinct available courses from the upstream database cache,
+    optionally filtered by year and semester. Returns available metadata statelessly.
     """
     try:
-        courses = get_all_courses()
-        return courses
+        result = get_all_courses(year, semester)
+        return result
     except Exception as e:
         logger.error(f"Error fetching courses: {e}")
         raise HTTPException(

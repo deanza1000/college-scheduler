@@ -37,8 +37,20 @@ export interface ScheduleResponse {
 // Support dynamic API targeting when deployed, falling back to empty string for relative proxying
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
-export async function fetchCourses(): Promise<Course[]> {
-  const res = await fetch(`${API_BASE}/api/courses`);
+export interface CoursesResponse {
+  courses: Course[];
+  year: string;
+  semester: string;
+  available_years: string[];
+}
+
+export async function fetchCourses(year?: string, semester?: string): Promise<CoursesResponse> {
+  const params = new URLSearchParams();
+  if (year) params.append('year', year);
+  if (semester) params.append('semester', semester);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+
+  const res = await fetch(`${API_BASE}/api/courses${qs}`);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Failed to fetch courses: ${text}`);
