@@ -29,6 +29,7 @@ export function CourseSelectionHeader({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const lastFetchedRef = useRef({ year: '', semester: '' });
 
+
   useEffect(() => {
     // Avoid redundant fetches if we have already fetched for the current specific term
     if (year && semester && lastFetchedRef.current.year === year && lastFetchedRef.current.semester === semester) {
@@ -39,7 +40,7 @@ export function CourseSelectionHeader({
       .then(res => {
         lastFetchedRef.current = { year: res.year, semester: res.semester };
         setCourses(res.courses);
-        
+
         // Update cache of course names so selected IDs from other terms still render beautifully
         setCourseNameCache(prev => {
           const next = { ...prev };
@@ -84,8 +85,8 @@ export function CourseSelectionHeader({
     onChangeCourses(selectedCourseIds.filter(c => c !== id));
   };
 
-  const filteredCourses = courses.filter(c => 
-    c.name.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredCourses = courses.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.id.includes(search)
   );
 
@@ -93,10 +94,10 @@ export function CourseSelectionHeader({
     <div className="card p-6 flex flex-col gap-6" dir="rtl">
       <div>
         <h2 className="text-xl font-bold mb-4">בחר קורסים</h2>
-        
+
         <div className="relative" ref={wrapperRef}>
           {/* Multi-select input area */}
-          <div 
+          <div
             className="input-base min-h-[42px] flex flex-wrap gap-2 items-center cursor-text"
             onClick={() => setIsOpen(true)}
           >
@@ -105,7 +106,7 @@ export function CourseSelectionHeader({
               return (
                 <span key={id} className="bg-primary/20 text-primary-light px-2 py-1 rounded-md text-sm flex items-center gap-1 border border-primary/30">
                   {name}
-                  <button 
+                  <button
                     onClick={(e) => { e.stopPropagation(); removeCourse(id); }}
                     className="hover:text-danger hover:bg-danger/10 rounded-full p-0.5 transition-colors"
                   >
@@ -160,7 +161,7 @@ export function CourseSelectionHeader({
       <div className="flex gap-4">
         <div className="flex-1">
           <label className="block text-sm font-medium text-textSecondary mb-1">שנת לימודים</label>
-          <select 
+          <select
             className="input-base"
             value={year}
             onChange={(e) => onChangeYear(e.target.value)}
@@ -173,7 +174,7 @@ export function CourseSelectionHeader({
         </div>
         <div className="flex-1">
           <label className="block text-sm font-medium text-textSecondary mb-1">סמסטר</label>
-          <select 
+          <select
             className="input-base"
             value={semester}
             onChange={(e) => onChangeSemester(e.target.value)}
