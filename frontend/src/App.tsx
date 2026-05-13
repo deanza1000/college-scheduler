@@ -25,6 +25,7 @@ function App() {
   const [results, setResults] = useState<ScheduleResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileKey, setTurnstileKey] = useState(0);
 
   const handleGenerate = async () => {
     if (selectedCourseIds.length === 0) {
@@ -53,6 +54,8 @@ function App() {
       setError(err.message || "אירעה שגיאה בשרת");
     } finally {
       setIsGenerating(false);
+      setTurnstileToken(null);
+      setTurnstileKey(prev => prev + 1);
     }
   };
 
@@ -61,13 +64,25 @@ function App() {
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Header */}
-        <header className="flex items-center gap-3 pb-4 border-b border-border">
-          <div className="bg-primary/20 p-2 rounded-lg text-primary">
-            <Calendar size={28} />
+        <header className="flex items-center gap-4 pb-4 border-b border-border">
+          <div className="bg-primary/5 p-2 md:p-3 rounded-xl border border-primary/20 flex items-center justify-center relative overflow-hidden group shrink-0">
+            <img 
+              src="/favicon.svg" 
+              alt="Professor Orca Icon" 
+              className="w-12 h-12 md:w-14 md:h-14 object-contain transform group-hover:scale-105 transition-transform drop-shadow-md" 
+            />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">מערכת שיבוץ מערכות שעות</h1>
-            <p className="text-textSecondary text-sm">הגדר קורסים ואילוצים, ואנחנו נמצא את המערכת האידיאלית עבורך</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-l from-primary via-primary-light to-sky-400 bg-clip-text text-transparent">
+                Professor Orca
+              </h1>
+              <span className="text-textSecondary text-lg font-light">|</span>
+              <span className="text-lg font-medium text-textPrimary">מערכת שיבוץ מערכות שעות</span>
+            </div>
+            <p className="text-textSecondary text-sm mt-1">
+              תן לפרופסור למצוא את המערכת המושלמת עבורך – הגדר קורסים ואילוצים, והמנוע החכם שלנו יעשה את השאר
+            </p>
           </div>
         </header>
 
@@ -107,6 +122,7 @@ function App() {
             {/* Cloudflare Turnstile Verification Area */}
             <div className="flex flex-col items-center md:items-start shrink-0" dir="ltr">
               <Turnstile
+                key={turnstileKey}
                 siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
                 onSuccess={(token) => setTurnstileToken(token)}
                 onError={() => setError("אימות האבטחה נכשל. אנא נסה שוב.")}

@@ -43,18 +43,20 @@ export function CourseCard({ event, isConflict }: CourseCardProps) {
         <BookOpen size={12} /> {activityType}
       </div>
       
-      <div className="mt-auto pt-2 flex flex-col gap-1 text-xs opacity-80 border-t border-border/50">
+      <div className="mt-auto pt-2 flex flex-col gap-1.5 text-xs opacity-85 border-t border-border/50">
         <div className="flex items-center gap-1">
-          <Clock size={12} /> <span dir="ltr">{event.start_time} - {event.end_time}</span>
+          <Clock size={12} className="shrink-0" /> <span dir="ltr">{event.start_time} - {event.end_time}</span>
         </div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 truncate w-1/2" title={instructor}>
+        {instructor && (
+          <div className="flex items-center gap-1 truncate" title={instructor}>
             <User size={12} className="shrink-0" /> <span className="truncate">{instructor}</span>
           </div>
-          <div className="flex items-center gap-1 truncate w-1/2" title={room}>
+        )}
+        {room && (
+          <div className="flex items-center gap-1 truncate" title={room}>
             <MapPin size={12} className="shrink-0" /> <span className="truncate">{room}</span>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
