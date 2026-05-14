@@ -23,19 +23,29 @@ export function ResultsTable({ scheduleData }: ResultsTableProps) {
     );
   }
 
-  // Find all unique times across all days
+  // Find all unique times across all days and unique courses for stable color mapping
   const allTimes = new Set<string>();
+  const courseKeysSet = new Set<string>();
   if (scheduleData && typeof scheduleData === 'object') {
     Object.values(scheduleData).forEach(dayEvents => {
       if (Array.isArray(dayEvents)) {
         dayEvents.forEach(event => {
-          if (event && event.start_time) {
-            allTimes.add(event.start_time);
+          if (event) {
+            if (event.start_time) {
+              allTimes.add(event.start_time);
+            }
+            const key = (event.course_name || event.course_id || '').trim();
+            if (key) {
+              courseKeysSet.add(key);
+            }
           }
         });
       }
     });
   }
+
+  // Sort course keys alphabetically to guarantee a stable, deterministic color assignment
+  const sortedCourseKeys = Array.from(courseKeysSet).sort();
 
   // Sort times chronologically
   const sortedTimes = Array.from(allTimes).sort((a, b) => {
@@ -152,10 +162,17 @@ export function ResultsTable({ scheduleData }: ResultsTableProps) {
                       const event = eventsForDay[i];
                       const hasConflict = eventsForDay.length > 1;
 
+                      let courseIndex = 0;
+                      if (event) {
+                        const key = (event.course_name || event.course_id || '').trim();
+                        courseIndex = sortedCourseKeys.indexOf(key);
+                        if (courseIndex === -1) courseIndex = 0;
+                      }
+
                       return (
                         <td key={`${t}-${day}-${i}`} className="p-2 align-top border-l border-border/30">
                           {event ? (
-                            <CourseCard event={event} isConflict={hasConflict} />
+                            <CourseCard event={event} isConflict={hasConflict} courseIndex={courseIndex} />
                           ) : null}
                         </td>
                       );

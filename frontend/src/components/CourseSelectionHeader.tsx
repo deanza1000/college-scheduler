@@ -26,7 +26,10 @@ export function CourseSelectionHeader({
   const [courseNameCache, setCourseNameCache] = useState<Record<string, string>>({});
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [focusedIndex, setFocusedIndex] = useState(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const lastFetchedRef = useRef({ year: '', semester: '' });
 
 
@@ -84,7 +87,12 @@ export function CourseSelectionHeader({
       onChangeCourses(selectedCourseIds.filter(c => c !== id));
     } else {
       onChangeCourses([...selectedCourseIds, id]);
+      setSearch('');
+      setFocusedIndex(0);
     }
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
   };
 
   const removeCourse = (id: string) => {
@@ -96,6 +104,44 @@ export function CourseSelectionHeader({
     c.id.includes(search)
   );
 
+  useEffect(() => {
+    if (isOpen && dropdownRef.current && filteredCourses.length > 0) {
+      const validIndex = Math.min(focusedIndex, filteredCourses.length - 1);
+      const activeItem = dropdownRef.current.children[validIndex] as HTMLElement;
+      if (activeItem && activeItem.scrollIntoView) {
+        activeItem.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [focusedIndex, isOpen, filteredCourses.length]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') {
+        setIsOpen(true);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex(prev => (prev < filteredCourses.length - 1 ? prev + 1 : prev));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex(prev => (prev > 0 ? prev - 1 : 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filteredCourses.length > 0) {
+        const validIndex = Math.min(focusedIndex, filteredCourses.length - 1);
+        const courseToToggle = filteredCourses[validIndex];
+        if (courseToToggle) {
+          toggleCourse(courseToToggle.id);
+        }
+      }
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+    }
+  };
+
   return (
     <div className="card p-6 flex flex-col gap-6" dir="rtl">
       <div>
@@ -105,7 +151,10 @@ export function CourseSelectionHeader({
           {/* Multi-select input area */}
           <div
             className="input-base min-h-[42px] flex flex-wrap gap-2 items-center cursor-text"
-            onClick={() => setIsOpen(true)}
+            onClick={() => {
+              setIsOpen(true);
+              inputRef.current?.focus();
+            }}
           >
             {selectedCourseIds.map(id => {
               const name = courseNameCache[id] || id;
@@ -122,12 +171,18 @@ export function CourseSelectionHeader({
               );
             })}
             <input
+              ref={inputRef}
               type="text"
               className="bg-transparent border-none outline-none flex-1 min-w-[120px] text-sm"
               placeholder={selectedCourseIds.length === 0 ? "חפש קורס..." : ""}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setFocusedIndex(0);
+                if (!isOpen) setIsOpen(true);
+              }}
               onFocus={() => setIsOpen(true)}
+              onKeyDown={handleKeyDown}
               dir="rtl"
             />
             <ChevronsUpDown size={16} className="text-textSecondary ml-2" />
@@ -135,18 +190,27 @@ export function CourseSelectionHeader({
 
           {/* Dropdown */}
           {isOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-surfaceHighlight border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+            <div
+              ref={dropdownRef}
+              className="absolute top-full left-0 right-0 mt-1 bg-surfaceHighlight border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto"
+            >
               {filteredCourses.length === 0 ? (
                 <div className="p-3 text-sm text-textSecondary text-center">לא נמצאו קורסים רלוונטיים לסמסטר זה</div>
               ) : (
-                filteredCourses.map(course => {
+                filteredCourses.map((course, index) => {
                   const isSelected = selectedCourseIds.includes(course.id);
+                  const isFocused = index === focusedIndex;
                   return (
                     <div
                       key={course.id}
                       className={classNames(
-                        "px-3 py-2 text-sm cursor-pointer hover:bg-primary/10 flex items-center justify-between",
-                        isSelected ? "bg-primary/5 text-primary" : "text-textPrimary"
+                        "px-3 py-2 text-sm cursor-pointer flex items-center justify-between transition-all",
+                        isFocused
+                          ? "bg-primary/20 border-r-4 border-primary font-medium"
+                          : isSelected
+                            ? "bg-primary/5 hover:bg-primary/10"
+                            : "hover:bg-primary/10",
+                        isSelected ? "text-primary" : "text-textPrimary"
                       )}
                       onClick={() => toggleCourse(course.id)}
                     >
