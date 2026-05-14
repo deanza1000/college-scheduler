@@ -38,25 +38,31 @@ export function CourseSelectionHeader({
 
     fetchCourses(year || undefined, semester || undefined)
       .then(res => {
-        lastFetchedRef.current = { year: res.year, semester: res.semester };
+        if (!res || !Array.isArray(res.courses)) {
+          console.error("Invalid response from fetchCourses:", res);
+          return;
+        }
+        lastFetchedRef.current = { year: res.year || '', semester: res.semester || '' };
         setCourses(res.courses);
 
         // Update cache of course names so selected IDs from other terms still render beautifully
         setCourseNameCache(prev => {
           const next = { ...prev };
           res.courses.forEach(c => {
-            next[c.id] = c.name;
+            if (c && c.id) {
+              next[c.id] = c.name;
+            }
           });
           return next;
         });
 
-        if (res.available_years && res.available_years.length > 0) {
+        if (Array.isArray(res.available_years) && res.available_years.length > 0) {
           setAvailableYears(res.available_years);
         }
-        if (year !== res.year) {
+        if (res.year && year !== res.year) {
           onChangeYear(res.year);
         }
-        if (semester !== res.semester) {
+        if (res.semester && semester !== res.semester) {
           onChangeSemester(res.semester);
         }
       })

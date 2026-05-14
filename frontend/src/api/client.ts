@@ -35,7 +35,7 @@ export interface ScheduleResponse {
 }
 
 // Support dynamic API targeting when deployed, falling back to empty string for relative proxying
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'https://spork-scheduler-backend.onrender.com');
 
 export interface CoursesResponse {
   courses: Course[];

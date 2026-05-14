@@ -25,11 +25,17 @@ export function ResultsTable({ scheduleData }: ResultsTableProps) {
 
   // Find all unique times across all days
   const allTimes = new Set<string>();
-  Object.values(scheduleData).forEach(dayEvents => {
-    dayEvents.forEach(event => {
-      allTimes.add(event.start_time);
+  if (scheduleData && typeof scheduleData === 'object') {
+    Object.values(scheduleData).forEach(dayEvents => {
+      if (Array.isArray(dayEvents)) {
+        dayEvents.forEach(event => {
+          if (event && event.start_time) {
+            allTimes.add(event.start_time);
+          }
+        });
+      }
     });
-  });
+  }
 
   // Sort times chronologically
   const sortedTimes = Array.from(allTimes).sort((a, b) => {
@@ -45,16 +51,22 @@ export function ResultsTable({ scheduleData }: ResultsTableProps) {
     DAYS_OF_WEEK.forEach(d => { tableData[t][d] = []; });
   });
 
-  Object.entries(scheduleData).forEach(([day, events]) => {
-    if (DAYS_OF_WEEK.includes(day)) {
-      events.forEach(event => {
-        const t = event.start_time;
-        if (tableData[t] && tableData[t][day]) {
-          tableData[t][day].push(event);
+  if (scheduleData && typeof scheduleData === 'object') {
+    Object.entries(scheduleData).forEach(([day, events]) => {
+      if (DAYS_OF_WEEK.includes(day)) {
+        if (Array.isArray(events)) {
+          events.forEach(event => {
+            if (event && event.start_time) {
+              const t = event.start_time;
+              if (tableData[t] && tableData[t][day]) {
+                tableData[t][day].push(event);
+              }
+            }
+          });
         }
-      });
-    }
-  });
+      }
+    });
+  }
 
   const handleDownloadScreenshot = async () => {
     if (!tableRef.current) return;
