@@ -55,7 +55,17 @@ export async function fetchCourses(year?: string, semester?: string): Promise<Co
     const text = await res.text();
     throw new Error(`Failed to fetch courses: ${text}`);
   }
-  return await res.json();
+  const data = await res.json();
+  // Support both new backend response format (object with metadata) and older deployments (raw array)
+  if (Array.isArray(data)) {
+    return {
+      courses: data,
+      year: year || '2026',
+      semester: semester || 'B',
+      available_years: ['2026']
+    };
+  }
+  return data;
 }
 
 export async function generateSchedule(payload: ScheduleRequest): Promise<ScheduleResponse> {
