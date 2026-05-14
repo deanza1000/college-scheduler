@@ -118,32 +118,13 @@ function App() {
             </div>
           )}
 
-          <div className="w-full flex flex-col md:flex-row items-center justify-between gap-6 max-w-4xl mx-auto">
-            {/* Cloudflare Turnstile Verification Area */}
-            <div className="flex flex-col items-center md:items-start shrink-0" dir="ltr">
-              <Turnstile
-                key={turnstileKey}
-                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
-                onSuccess={(token) => setTurnstileToken(token)}
-                onError={() => setError("אימות האבטחה נכשל. אנא נסה שוב.")}
-                options={{
-                  theme: 'auto',
-                  size: 'flexible'
-                }}
-              />
-              {!turnstileToken && (
-                <span className="text-xs text-amber-500 mt-1.5 flex items-center gap-1" dir="rtl">
-                  <Info size={12} /> ממתין לאימות אבטחה (Cloudflare)...
-                </span>
-              )}
-            </div>
-
+          <div className="w-full max-w-md flex flex-col items-center gap-5 mx-auto">
             {/* Submit Trigger Action */}
-            <div className="flex-1 w-full max-w-md">
+            <div className="w-full">
               <button 
                 onClick={handleGenerate}
                 disabled={isGenerating || selectedCourseIds.length === 0 || !turnstileToken}
-                className="w-full btn-primary py-4 text-lg font-bold flex items-center justify-center gap-2 shadow-lg"
+                className="w-full btn-primary py-4 text-lg font-bold flex items-center justify-center gap-2 shadow-lg transition-all duration-200"
               >
                 {isGenerating ? (
                   <>
@@ -159,6 +140,33 @@ function App() {
                   <Info size={12} /> אנא בחר קורסים מהרשימה העליונה לפני היצירה
                 </p>
               )}
+            </div>
+
+            {/* Seamlessly Integrated Cloudflare Turnstile Verification Area */}
+            <div className="w-full flex flex-col items-center justify-center pt-1">
+              <div className="inline-flex flex-col items-center rounded-xl bg-background/50 p-2 border border-border/40 shadow-inner backdrop-blur-sm max-w-full overflow-hidden transition-all duration-300 hover:border-border/80" dir="ltr">
+                <Turnstile
+                  key={turnstileKey}
+                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                  onSuccess={(token) => setTurnstileToken(token)}
+                  onError={() => setError("אימות האבטחה נכשל. אנא נסה שוב.")}
+                  options={{
+                    theme: 'dark',
+                    size: 'flexible'
+                  }}
+                />
+              </div>
+              <div className="mt-2 text-center h-4 flex items-center justify-center">
+                {!turnstileToken ? (
+                  <span className="text-xs text-amber-500/90 flex items-center gap-1.5 font-medium animate-pulse" dir="rtl">
+                    <Info size={13} className="shrink-0" /> מוודא חיבור מאובטח לפני שליחה...
+                  </span>
+                ) : (
+                  <span className="text-xs text-success/90 flex items-center gap-1.5 font-medium" dir="rtl">
+                    <span className="w-2 h-2 rounded-full bg-success animate-pulse shrink-0" /> חיבור מאובטח ומאומת
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
