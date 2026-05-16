@@ -34,6 +34,7 @@ def ensure_playwright_installed():
     the python package and Chromium browser binaries for zero-configuration UI automation.
     """
     try:
+        # pyrefly: ignore [missing-import]
         import playwright
         print("✅ Playwright library found.")
     except ImportError:
@@ -53,6 +54,7 @@ def run_automated_ui(url: str):
     Uses Playwright to visibly open Chromium, search/add courses, set preferences,
     and submit the schedule generation request live.
     """
+    # pyrefly: ignore [missing-import]
     from playwright.sync_api import sync_playwright
 
     print("\n🤖 Initiating Playwright UI Automation Pilot...")
