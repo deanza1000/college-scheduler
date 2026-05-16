@@ -85,7 +85,7 @@ class CourseSchedulerSA:
             for j in range(i + 1, len(active_sessions)):
                 overlap = self.get_overlap(active_sessions[i], active_sessions[j])
                 if overlap > 0:
-                    hard_penalty += 100000 * overlap
+                    hard_penalty += 500000 * overlap
                     has_hard_violations = True
 
         # Calculate soft constraints (Curved/Quadratic Penalties)
@@ -121,10 +121,16 @@ class CourseSchedulerSA:
                 elif deviation_hours > 0:
                     total_start_time_penalty += 0.5 * (deviation_hours ** 2)
 
+        total_gap_hours = total_gap_minutes / 60.0
         if "gaps" in self.weights:
-            soft_penalty += self.weights["gaps"] * (total_gap_minutes ** 2)
-        if "days_on_campus" in self.weights:
-            soft_penalty += self.weights["days_on_campus"] * (total_days_on_campus ** 2)
+            soft_penalty += self.weights["gaps"] * (total_gap_hours ** 3)
+        # Apply days on campus penalty OR preferred num days penalty, but NOT both.
+        if self.preferred_num_days is not None and "preferred_num_days" in self.weights:
+            deviation = total_days_on_campus - self.preferred_num_days
+            soft_penalty += self.weights["preferred_num_days"] * (deviation ** 2)
+        elif "days_on_campus" in self.weights:
+            # Only minimize days on campus if the user didn't explicitly request a specific number of days
+            soft_penalty += self.weights["days_on_campus"] * 500 * (total_days_on_campus ** 3)
         if "start_time_deviation" in self.weights:
             soft_penalty += self.weights["start_time_deviation"] * total_start_time_penalty
 
@@ -133,17 +139,13 @@ class CourseSchedulerSA:
             excluded_count = sum(1 for s in active_sessions if s['day'] in self.exclude_days)
             soft_penalty += self.weights["exclude_days"] * (excluded_count ** 2)
 
-        # Preferred-num-days penalty: penalize deviation from the target day count
-        if self.preferred_num_days is not None and "preferred_num_days" in self.weights:
-            deviation = total_days_on_campus - self.preferred_num_days
-            soft_penalty += self.weights["preferred_num_days"] * (deviation ** 2)
 
         total_energy = hard_penalty + soft_penalty
         return total_energy, has_hard_violations
 
-    def get_neighbor(self, current_state: Dict[str, Dict[str, str]], T: float, T_max: float) -> Dict[str, Dict[str, str]]:
+    def get_neighbor(self, current_state: Dict[str, Dict[str, str]]) -> Dict[str, Dict[str, str]]:
         """
-        Generate a neighbor state dynamically depending on Temperature (Hybrid Mutation).
+        Generate a random neighbor state. Allows overlaps so the algorithm can traverse them.
         """
         new_state = copy.deepcopy(current_state)
         
@@ -159,45 +161,12 @@ class CourseSchedulerSA:
         current_instance = new_state[course_to_mutate][activity_to_mutate]
         available_instances.remove(current_instance)
         
-        p_random = T / T_max
-        r = random.random()
-        
-        if r < p_random:
-            # Unrestricted Move (High Temp): Swap to any random group
-            new_state[course_to_mutate][activity_to_mutate] = random.choice(available_instances)
-        else:
-            # Restricted Move (Low Temp): Try to find a group that doesn't cause NEW overlaps
-            other_sessions = []
-            for cid, acts in current_state.items():
-                for act, inst in acts.items():
-                    if not (cid == course_to_mutate and act == activity_to_mutate):
-                        other_sessions.extend(self.courses_data[cid][act][inst])
-                        
-            best_safe_instance = None
-            random.shuffle(available_instances)
-            for candidate_instance in available_instances:
-                candidate_sessions = self.courses_data[course_to_mutate][activity_to_mutate][candidate_instance]
-                causes_overlap = False
-                for c_sess in candidate_sessions:
-                    for o_sess in other_sessions:
-                        if self.get_overlap(c_sess, o_sess) > 0:
-                            causes_overlap = True
-                            break
-                    if causes_overlap:
-                        break
-                if not causes_overlap:
-                    best_safe_instance = candidate_instance
-                    break
-                    
-            if best_safe_instance:
-                new_state[course_to_mutate][activity_to_mutate] = best_safe_instance
-            else:
-                # If no safe move found, fallback to random move to avoid getting stuck
-                new_state[course_to_mutate][activity_to_mutate] = random.choice(available_instances)
+        # Purely random move (allows overlaps to be traversed)
+        new_state[course_to_mutate][activity_to_mutate] = random.choice(available_instances)
                 
         return new_state
 
-    def optimize(self, alpha: float = 0.95, T_max: float = 1000.0, T_min: float = 0.1, markov_chain_length: int = 100) -> Tuple[Dict[str, Dict[str, str]], float, bool]:
+    def optimize(self, alpha: float = 0.9, T_max: float = 1000.0, T_min: float = 0.1, markov_chain_length: int = 50) -> Tuple[Dict[str, Dict[str, str]], float, bool]:
         """
         Main loop for Simulated Annealing with Geometric Decay cooling schedule.
         """
@@ -208,11 +177,12 @@ class CourseSchedulerSA:
         best_energy = current_energy
         best_hard_violations = current_hard_violations
         
+        T_max = self.dynamicInitTemp(current_state, T_max)
         T = T_max
         
         while T > T_min:
             for _ in range(markov_chain_length):
-                neighbor_state = self.get_neighbor(current_state, T, T_max)
+                neighbor_state = self.get_neighbor(current_state)
                 neighbor_energy, neighbor_hard_violations = self.calculate_energy(neighbor_state)
                 
                 # Standard Boltzmann acceptance
@@ -235,10 +205,72 @@ class CourseSchedulerSA:
                     best_state = copy.deepcopy(current_state)
                     best_hard_violations = current_hard_violations
             
-            # Geometric Decay
-            T = alpha * T
+            # Geometric Cooling Schedule
+            T = T * alpha
+
+        # Revert to best state before quenching
+        current_state = copy.deepcopy(best_state)
+        current_energy = best_energy
+
+        # Quenching Phase (Hill Climbing)
+        improvement = True
+        while improvement:
+            improvement = False
             
+            for course_id in self.course_ids:
+                for activity_type, instances in self.courses_data[course_id].items():
+                    current_instance = current_state[course_id][activity_type]
+                    
+                    for candidate_instance in instances.keys():
+                        if candidate_instance == current_instance:
+                            continue
+                            
+                        # Try move
+                        neighbor_state = copy.deepcopy(current_state)
+                        neighbor_state[course_id][activity_type] = candidate_instance
+                        
+                        neighbor_energy, neighbor_hard_violations = self.calculate_energy(neighbor_state)
+                        
+                        if not neighbor_hard_violations and neighbor_energy < current_energy:
+                            current_state = neighbor_state
+                            current_energy = neighbor_energy
+                            improvement = True
+                            
+                            # Keep track of global best found
+                            if current_energy < best_energy:
+                                best_energy = current_energy
+                                best_state = copy.deepcopy(current_state)
+                                best_hard_violations = neighbor_hard_violations
+                            break # First improvement
+                            
+                    if improvement:
+                        break
+                if improvement:
+                    break
+
         return best_state, best_energy, best_hard_violations
+
+    def dynamicInitTemp(self, initial_state: Dict[str, Dict[str, str]], default_t_max: float) -> float:
+        total_delta = 0
+        worse_moves = 0
+        
+        current_energy, _ = self.calculate_energy(initial_state)
+        
+        for _ in range(100):
+            # Pass purely random moves
+            neighbor_state = self.get_neighbor(initial_state)
+            neighbor_energy, _ = self.calculate_energy(neighbor_state)
+            
+            delta = neighbor_energy - current_energy
+            if delta > 0:
+                total_delta += delta
+                worse_moves += 1
+                
+        if worse_moves == 0:
+            return default_t_max
+            
+        avg_delta = total_delta / worse_moves
+        return -avg_delta / math.log(0.8)
 
     def format_schedule(self, state: Dict[str, Dict[str, str]]) -> Dict[str, List[Dict[str, Any]]]:
         """

@@ -40,7 +40,7 @@ def run_scheduler(year: str, semester: str, course_ids: list, exclude_days: list
     )
     
     best_state, best_energy, has_hard_violations = engine.optimize(
-        alpha=0.95, T_max=1000.0, T_min=0.1, markov_chain_length=100
+        T_max=1000.0, T_min=0.1, markov_chain_length=100
     )
 
     schedule = engine.format_schedule(best_state)
