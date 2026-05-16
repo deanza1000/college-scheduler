@@ -140,6 +140,10 @@ function App() {
                   <Info size={12} /> אנא בחר קורסים מהרשימה העליונה לפני היצירה
                 </p>
               )}
+              <p className="text-xs text-textSecondary/80 mt-3 text-center flex items-center justify-center gap-1">
+                <Info size={14} className="text-primary-light shrink-0" />
+                שימו לב: המערכת יכולה להפיק מערכת שעות שאינה אופטימלית, ומיועדת להרצה מספר פעמים כדי למצוא מערכת טובה.
+              </p>
             </div>
 
             {/* Seamlessly Integrated Cloudflare Turnstile Verification Area */}

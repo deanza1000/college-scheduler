@@ -115,6 +115,13 @@ export function CourseSelectionHeader({
   }, [focusedIndex, isOpen, filteredCourses.length]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && search === '') {
+      if (selectedCourseIds.length > 0) {
+        removeCourse(selectedCourseIds[selectedCourseIds.length - 1]);
+      }
+      return;
+    }
+
     if (!isOpen) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') {
         setIsOpen(true);
