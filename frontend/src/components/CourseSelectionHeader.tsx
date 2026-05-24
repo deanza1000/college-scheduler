@@ -22,6 +22,7 @@ export function CourseSelectionHeader({
   onChangeSemester
 }: CourseSelectionHeaderProps) {
   const [courses, setCourses] = useState<Course[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [availableYears, setAvailableYears] = useState<string[]>(['2026']);
   const [courseNameCache, setCourseNameCache] = useState<Record<string, string>>({});
   const [isOpen, setIsOpen] = useState(false);
@@ -38,9 +39,10 @@ export function CourseSelectionHeader({
     if (year && semester && lastFetchedRef.current.year === year && lastFetchedRef.current.semester === semester) {
       return;
     }
-
+    setIsLoading(true);
     fetchCourses(year || undefined, semester || undefined)
       .then(res => {
+        setIsLoading(false);
         if (!res || !Array.isArray(res.courses)) {
           console.error("Invalid response from fetchCourses:", res);
           return;
@@ -69,7 +71,10 @@ export function CourseSelectionHeader({
           onChangeSemester(res.semester);
         }
       })
-      .catch(err => console.error("Failed to fetch courses:", err));
+      .catch(err => {
+        console.error("Failed to fetch courses:", err);
+        setIsLoading(false);
+      });
   }, [year, semester, onChangeYear, onChangeSemester]);
 
   useEffect(() => {
@@ -157,8 +162,9 @@ export function CourseSelectionHeader({
         <div className="relative" ref={wrapperRef}>
           {/* Multi-select input area */}
           <div
-            className="input-base min-h-[42px] flex flex-wrap gap-2 items-center cursor-text"
+            className={classNames("input-base min-h-[42px] flex flex-wrap gap-2 items-center", isLoading ? "cursor-not-allowed opacity-70" : "cursor-text")}
             onClick={() => {
+              if (isLoading) return;
               setIsOpen(true);
               inputRef.current?.focus();
             }}
@@ -181,18 +187,25 @@ export function CourseSelectionHeader({
               ref={inputRef}
               type="text"
               className="bg-transparent border-none outline-none flex-1 min-w-[120px] text-sm"
-              placeholder={selectedCourseIds.length === 0 ? "חפש קורס..." : ""}
+              placeholder={isLoading ? "טוען קורסים..." : selectedCourseIds.length === 0 ? "חפש קורס..." : ""}
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
                 setFocusedIndex(0);
                 if (!isOpen) setIsOpen(true);
               }}
-              onFocus={() => setIsOpen(true)}
+              onFocus={() => {
+                if (!isLoading) setIsOpen(true);
+              }}
               onKeyDown={handleKeyDown}
               dir="rtl"
+              disabled={isLoading}
             />
-            <ChevronsUpDown size={16} className="text-textSecondary ml-2" />
+            {isLoading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-textSecondary border-t-transparent ml-2"></div>
+            ) : (
+              <ChevronsUpDown size={16} className="text-textSecondary ml-2" />
+            )}
           </div>
 
           {/* Dropdown */}
@@ -201,7 +214,12 @@ export function CourseSelectionHeader({
               ref={dropdownRef}
               className="absolute top-full left-0 right-0 mt-1 bg-surfaceHighlight border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto"
             >
-              {filteredCourses.length === 0 ? (
+              {isLoading ? (
+                <div className="p-3 text-sm text-textSecondary text-center flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-textSecondary border-t-transparent"></div>
+                  טוען קורסים...
+                </div>
+              ) : filteredCourses.length === 0 ? (
                 <div className="p-3 text-sm text-textSecondary text-center">לא נמצאו קורסים רלוונטיים לסמסטר זה</div>
               ) : (
                 filteredCourses.map((course, index) => {
