@@ -31,23 +31,23 @@ export function CourseSelectionHeader({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const lastFetchedRef = useRef({ year: '', semester: '' });
+  const lastFetchedRef = useRef({ year: '' });
 
 
   useEffect(() => {
-    // Avoid redundant fetches if we have already fetched for the current specific term
-    if (year && semester && lastFetchedRef.current.year === year && lastFetchedRef.current.semester === semester) {
+    // Avoid redundant fetches if we have already fetched for the current year
+    if (year && lastFetchedRef.current.year === year) {
       return;
     }
     setIsLoading(true);
-    fetchCourses(year || undefined, semester || undefined)
+    fetchCourses(year || undefined)
       .then(res => {
         setIsLoading(false);
         if (!res || !Array.isArray(res.courses)) {
           console.error("Invalid response from fetchCourses:", res);
           return;
         }
-        lastFetchedRef.current = { year: res.year || '', semester: res.semester || '' };
+        lastFetchedRef.current = { year: res.year || '' };
         setCourses(res.courses);
 
         // Update cache of course names so selected IDs from other terms still render beautifully
@@ -67,7 +67,7 @@ export function CourseSelectionHeader({
         if (res.year && year !== res.year) {
           onChangeYear(res.year);
         }
-        if (res.semester && semester !== res.semester) {
+        if (res.semester) {
           onChangeSemester(res.semester);
         }
       })
@@ -75,7 +75,7 @@ export function CourseSelectionHeader({
         console.error("Failed to fetch courses:", err);
         setIsLoading(false);
       });
-  }, [year, semester, onChangeYear, onChangeSemester]);
+  }, [year, onChangeYear, onChangeSemester]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -104,10 +104,17 @@ export function CourseSelectionHeader({
     onChangeCourses(selectedCourseIds.filter(c => c !== id));
   };
 
-  const filteredCourses = courses.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.id.includes(search)
-  );
+  // Filter courses by selected semester first, then by search text
+  const filteredCourses = courses
+    .filter(c =>
+      !c.semesters || c.semesters.length === 0 ||
+      c.semesters.includes(semester) ||
+      c.semesters.includes('Annual')
+    )
+    .filter(c =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.id.includes(search)
+    );
 
   useEffect(() => {
     if (isOpen && dropdownRef.current && filteredCourses.length > 0) {
@@ -259,7 +266,7 @@ export function CourseSelectionHeader({
           <select
             className="input-base"
             value={year}
-            onChange={(e) => onChangeYear(e.target.value)}
+            onChange={(e) => { onChangeCourses([]); onChangeYear(e.target.value); }}
             dir="rtl"
           >
             {availableYears.map(y => (
@@ -272,7 +279,7 @@ export function CourseSelectionHeader({
           <select
             className="input-base"
             value={semester}
-            onChange={(e) => onChangeSemester(e.target.value)}
+            onChange={(e) => { onChangeCourses([]); onChangeSemester(e.target.value); }}
             dir="rtl"
           >
             <option value="A">א' (חורף)</option>

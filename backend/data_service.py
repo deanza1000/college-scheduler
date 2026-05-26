@@ -151,12 +151,13 @@ def parse_courses_to_json(db_path: str = None) -> str:
 
 def get_all_courses(year: str = None, semester: str = None) -> dict:
     """
-    Returns a dict containing the list of distinct courses for the specified year/semester,
-    along with the resolved year, semester, and available years.
+    Returns a dict containing all distinct courses for the specified year,
+    each annotated with which semesters they have sessions in.
+    The semester param is only used to resolve a default semester suggestion.
     If year/semester are not provided, statelessly determines the latest available year/semester.
     """
     current_time = time.time()
-    cache_key = f"{year}_{semester}"
+    cache_key = f"{year}"
     if cache_key in _IN_MEMORY_CACHE["courses_by_term"] and (current_time - _IN_MEMORY_CACHE["timestamp"] < CACHE_TTL_SECONDS):
         return _IN_MEMORY_CACHE["courses_by_term"][cache_key]
 
@@ -188,10 +189,10 @@ def get_all_courses(year: str = None, semester: str = None) -> dict:
         else:
             target_semester = "B"
             
-    # Map target_semester to Hebrew for DB querying
-    sem_hebrew = {"A": "א", "B": "ב", "SUMMER": "קיץ"}.get(target_semester.upper(), "ב")
+    # Hebrew-to-English semester mapping
+    sem_reverse_map = {"א": "A", "ב": "B", "קיץ": "Summer", "שנתי": "Annual"}
     
-    # Query distinct courses from SQLite for this year and semester (including annual 'שנתי' courses)
+    # Query ALL courses for this year that have valid sessions (any semester)
     path_to_use = get_cached_db_path()
     courses = []
     if os.path.exists(path_to_use):
@@ -200,21 +201,29 @@ def get_all_courses(year: str = None, semester: str = None) -> dict:
         cursor = conn.cursor()
         try:
             query = """
-                SELECT DISTINCT c.course_id as id, c.name 
+                SELECT DISTINCT c.course_id as id, c.name, s.semester
                 FROM courses c
                 JOIN instances i ON c.course_id = i.course_id AND c.year = i.year
                 JOIN sessions s ON i.instance_id = s.instance_id
-                WHERE c.year = ? AND s.semester IN (?, 'שנתי')
+                WHERE c.year = ?
                   AND s.start_time IS NOT NULL AND s.start_time != ''
                   AND s.end_time IS NOT NULL AND s.end_time != ''
                   AND s.week_day IS NOT NULL AND s.week_day != ''
                 ORDER BY c.name
             """
-            cursor.execute(query, (target_year, sem_hebrew))
+            cursor.execute(query, (target_year,))
             rows = cursor.fetchall()
-            courses = [{"id": str(row["id"]), "name": row["name"] or str(row["id"])} for row in rows]
+            course_map = {}
+            for row in rows:
+                cid = str(row["id"])
+                if cid not in course_map:
+                    course_map[cid] = {"id": cid, "name": row["name"] or cid, "semesters": []}
+                sem_code = sem_reverse_map.get(row["semester"], row["semester"])
+                if sem_code not in course_map[cid]["semesters"]:
+                    course_map[cid]["semesters"].append(sem_code)
+            courses = sorted(course_map.values(), key=lambda c: c["name"])
         except Exception as e:
-            logger.error(f"Failed to query distinct courses for {target_year} {target_semester}: {e}")
+            logger.error(f"Failed to query courses for {target_year}: {e}")
         finally:
             conn.close()
             

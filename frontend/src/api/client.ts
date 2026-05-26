@@ -1,6 +1,7 @@
 export interface Course {
   id: string;
   name: string;
+  semesters?: string[];
 }
 
 export interface ScheduleRequest {
