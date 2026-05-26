@@ -205,6 +205,9 @@ def get_all_courses(year: str = None, semester: str = None) -> dict:
                 JOIN instances i ON c.course_id = i.course_id AND c.year = i.year
                 JOIN sessions s ON i.instance_id = s.instance_id
                 WHERE c.year = ? AND s.semester IN (?, 'שנתי')
+                  AND s.start_time IS NOT NULL AND s.start_time != ''
+                  AND s.end_time IS NOT NULL AND s.end_time != ''
+                  AND s.week_day IS NOT NULL AND s.week_day != ''
                 ORDER BY c.name
             """
             cursor.execute(query, (target_year, sem_hebrew))
