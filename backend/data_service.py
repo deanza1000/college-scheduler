@@ -6,6 +6,12 @@ import urllib.request
 import logging
 
 try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+try:
     from bidi.algorithm import get_display
 except ImportError:
     def get_display(text):
@@ -13,7 +19,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-URL = "https://beta.braude.top/braude/api/db"
+URL = os.environ.get("BRAUDE_DB_URL")
 CACHED_DB_PATH = "/tmp/braude_cached.sqlite"
 CACHE_TTL_SECONDS = 3600  # 1 hour cache
 
