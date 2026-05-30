@@ -62,11 +62,11 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-textPrimary p-4 md:p-8 font-sans" dir="rtl">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="h-screen flex flex-col overflow-hidden bg-background text-textPrimary p-4 md:p-6 font-sans" dir="rtl">
+      <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col min-h-0 space-y-4 md:space-y-6">
         
         {/* Header */}
-        <header className="flex items-center gap-4 pb-4 border-b border-border">
+        <header className="flex items-center gap-4 pb-4 border-b border-border shrink-0">
           <div className="bg-primary/5 p-2 md:p-3 rounded-xl border border-primary/20 flex items-center justify-center relative overflow-hidden group shrink-0">
             <img 
               src="/favicon.svg" 
@@ -89,7 +89,7 @@ function App() {
         </header>
 
         {/* Collapsible Header Accordion Strip */}
-        <div className="card overflow-hidden transition-all duration-300 border border-border/80 bg-surface/50 backdrop-blur-md">
+        <div className="card shrink-0 overflow-hidden transition-all duration-300 border border-border/80 bg-surface/50 backdrop-blur-md">
           <div 
             className="p-4 flex items-center justify-between cursor-pointer hover:bg-surfaceHighlight/20 transition-colors"
             onClick={() => setIsSettingsExpanded(!isSettingsExpanded)}
@@ -137,7 +137,7 @@ function App() {
         </div>
 
         {/* Centralized Action Dashboard Strip */}
-        <div className="card p-6 bg-surfaceHighlight/30 border-primary/20 flex flex-col items-center justify-center gap-4">
+        <div className="card shrink-0 p-6 bg-surfaceHighlight/30 border-primary/20 flex flex-col items-center justify-center gap-4">
           {error && (
             <div className="w-full max-w-2xl bg-danger/10 border border-danger/50 text-danger-light p-3 rounded-md flex items-start gap-2 text-sm">
               <AlertTriangle size={16} className="shrink-0 mt-0.5" />
@@ -199,7 +199,7 @@ function App() {
         </div>
 
         {/* Results Area Section: Spans full canvas width below settings */}
-        <div className="space-y-6 pt-4">
+        <div className="flex-1 flex flex-col min-h-0 pt-2 pb-2">
           {results?.warnings && (
             (results.warnings.invalid_courses && results.warnings.invalid_courses.length > 0) || 
             results.warnings.has_hard_violations
