@@ -3,6 +3,7 @@ import { fetchCourses } from '../api/client';
 import type { Course } from '../api/client';
 import { Check, ChevronsUpDown, X } from 'lucide-react';
 import { classNames } from '../utils/helpers';
+import { COURSE_COLOR_THEMES } from './CourseCard';
 
 interface CourseSelectionHeaderProps {
   selectedCourseIds: string[];
@@ -169,16 +170,17 @@ export function CourseSelectionHeader({
               inputRef.current?.focus();
             }}
           >
-            {selectedCourseIds.map(id => {
+            {selectedCourseIds.map((id, idx) => {
               const name = courseNameCache[id] || id;
+              const theme = COURSE_COLOR_THEMES[idx % COURSE_COLOR_THEMES.length];
               return (
-                <span key={id} className="bg-primary/20 text-primary-light px-2 py-1 rounded-md text-sm flex items-center gap-1 border border-primary/30">
+                <span key={id} className={classNames(theme.bg, theme.text, theme.border, "px-2 py-1 rounded-md text-sm flex items-center gap-1.5 border transition-all hover:scale-102")}>
                   {name}
                   <button
                     onClick={(e) => { e.stopPropagation(); removeCourse(id); }}
                     className="hover:text-danger hover:bg-danger/10 rounded-full p-0.5 transition-colors"
                   >
-                    <X size={14} />
+                    <X size={13} className="transition-transform duration-200 hover:rotate-90" />
                   </button>
                 </span>
               );
