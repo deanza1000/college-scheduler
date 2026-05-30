@@ -14,7 +14,7 @@ export default {
         primaryHover: '#2563eb', // Blue 600
         textPrimary: '#f4f4f5', // Zinc 50
         textSecondary: '#a1a1aa', // Zinc 400
-        border: '#3f3f46', // Zinc 700
+        border: '#27272a', // Zinc 800 (sleeker borders)
         danger: '#ef4444', // Red 500
         dangerHover: '#dc2626',
         success: '#22c55e', // Green 500
