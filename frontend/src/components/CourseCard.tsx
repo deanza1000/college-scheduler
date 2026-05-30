@@ -85,11 +85,11 @@ export function CourseCard({ event, isConflict, courseIndex }: CourseCardProps) 
   return (
     <div 
       className={classNames(
-        "p-3 rounded-md border border-r-4 text-sm flex flex-col gap-2 relative h-full transition-all hover:shadow-md",
+        "p-3 rounded-md border border-r-4 text-xs sm:text-sm flex flex-col gap-2 relative h-full transition-all duration-200 hover:shadow-md hover:-translate-y-0.5",
         theme.bg,
         theme.border,
         theme.accent,
-        isConflict && "border-danger ring-1 ring-danger shadow-[0_0_10px_rgba(239,68,68,0.3)]"
+        isConflict && "border-danger ring-1 ring-danger shadow-[0_0_10px_rgba(239,68,68,0.2)]"
       )}
       dir="rtl"
     >

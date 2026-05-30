@@ -85,7 +85,7 @@ export function ResultsTable({ scheduleData }: ResultsTableProps) {
       const canvas = await html2canvas(tableRef.current, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#18181b',
+        backgroundColor: '#09090b', // match premium zinc-950 dark background
       });
       const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
@@ -125,9 +125,9 @@ export function ResultsTable({ scheduleData }: ResultsTableProps) {
 
       <div ref={tableRef} className="card overflow-hidden p-2 bg-surface">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse min-w-[1200px]">
+          <table className="w-full border-collapse min-w-[1000px] border border-border/40">
             <thead>
-              <tr className="bg-surfaceHighlight">
+              <tr className="bg-surfaceHighlight/60 backdrop-blur-md">
                 <th className="p-3 border-b border-border text-right font-medium w-24">שעה</th>
                 {DAYS_OF_WEEK.map(day => (
                   <th key={day} className="p-3 border-b border-border text-center font-medium w-56 min-w-[180px]">
