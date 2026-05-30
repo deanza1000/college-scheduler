@@ -229,10 +229,9 @@ export function CourseSelectionHeader({
           {/* Dropdown */}
           {isOpen && (
             <div
-              ref={dropdownRef}
-              className="absolute top-full left-0 right-0 mt-1 bg-surfaceHighlight border border-border rounded-md shadow-lg z-50 max-h-80 overflow-y-auto flex flex-col"
+              className="absolute top-full left-0 right-0 mt-1 bg-surfaceHighlight border border-border rounded-md shadow-lg z-50 flex flex-col max-h-80"
             >
-              <div className="flex-1 overflow-y-auto">
+              <div ref={dropdownRef} className="flex-1 overflow-y-auto">
                 {isLoading ? (
                   <div className="p-3 text-sm text-textSecondary text-center flex items-center justify-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-textSecondary border-t-transparent"></div>
