@@ -5,3 +5,5 @@ __pycache__/
 /backend/test_data.json
 .env
 /md_files
+/.superpowers
+docs/
