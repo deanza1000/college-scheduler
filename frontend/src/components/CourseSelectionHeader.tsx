@@ -75,7 +75,7 @@ export function CourseSelectionHeader({
         console.error("Failed to fetch courses:", err);
         setIsLoading(false);
       });
-  }, [year, onChangeYear, onChangeSemester]);
+  }, [year, semester, onChangeYear, onChangeSemester]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
