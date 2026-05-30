@@ -62,8 +62,8 @@ function App() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-y-auto bg-background text-textPrimary p-4 md:p-6 font-sans" dir="rtl">
-      <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col min-h-0 space-y-4 md:space-y-6">
+    <div className="min-h-screen flex flex-col bg-background text-textPrimary p-4 md:p-6 font-sans" dir="rtl">
+      <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col space-y-4 md:space-y-6">
         
         {/* Header */}
         <header className="flex items-center gap-4 pb-4 border-b border-border shrink-0">
@@ -199,7 +199,7 @@ function App() {
         </div>
 
         {/* Results Area Section: Spans full canvas width below settings */}
-        <div className="flex-1 flex flex-col min-h-[400px] shrink-0 pt-2 pb-2">
+        <div className="flex-1 flex flex-col pt-2 pb-2">
           {results?.warnings && (
             (results.warnings.invalid_courses && results.warnings.invalid_courses.length > 0) || 
             results.warnings.has_hard_violations

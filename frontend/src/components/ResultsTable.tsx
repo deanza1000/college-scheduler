@@ -101,7 +101,7 @@ export function ResultsTable({ scheduleData }: ResultsTableProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 space-y-4" dir="rtl">
+    <div className="flex-1 flex flex-col space-y-4" dir="rtl">
       <div className="flex items-center justify-between px-1">
         <h3 className="text-lg font-bold text-textPrimary">תצוגת מערכת שעות:</h3>
         <button
@@ -125,9 +125,9 @@ export function ResultsTable({ scheduleData }: ResultsTableProps) {
       </div>
 
       {/* Desktop View: Full Grid */}
-      <div ref={tableRef} className="hidden md:flex flex-col flex-1 card overflow-hidden p-2 bg-surface min-h-[400px]">
-        <div className="overflow-x-auto overflow-y-auto flex-1">
-          <table className="w-full h-full border-collapse min-w-[1000px] border border-border/40">
+      <div ref={tableRef} className="hidden md:block card overflow-hidden p-2 bg-surface">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse min-w-[1000px] border border-border/40">
             <thead>
               <tr className="bg-surfaceHighlight/60 backdrop-blur-md">
                 <th className="p-3 border-b border-border text-right font-medium w-24">שעה</th>
