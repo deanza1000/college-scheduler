@@ -103,10 +103,10 @@ export function PreferenceToggle({
                     key={day.id}
                     onClick={() => toggleExcludeDay(day.id)}
                     className={classNames(
-                      "flex-1 min-w-[80px] py-3 rounded-md border text-sm font-medium transition-colors flex flex-col items-center gap-1",
+                      "flex-1 min-w-[85px] py-3 rounded-md border text-sm font-medium transition-all duration-200 flex flex-col items-center gap-1 shadow-sm",
                       isExcluded 
-                        ? "bg-danger/10 border-danger/50 text-danger" 
-                        : "bg-surfaceHighlight border-border text-textPrimary hover:border-primary/50"
+                        ? "bg-red-500/10 border-red-500/30 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.05)]" 
+                        : "bg-surfaceHighlight/40 border-border/80 text-textSecondary hover:border-primary/50 hover:text-textPrimary hover:bg-surfaceHighlight/80"
                     )}
                   >
                     <span>{day.label}</span>

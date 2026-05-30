@@ -6,13 +6,14 @@ import type { PreferenceMode } from './components/PreferenceToggle';
 import { ResultsTable } from './components/ResultsTable';
 import { generateSchedule } from './api/client';
 import type { ScheduleResponse, ScheduleRequest } from './api/client';
-import { Calendar, Loader2, AlertTriangle, Info } from 'lucide-react';
+import { Calendar, Loader2, AlertTriangle, Info, ChevronDown } from 'lucide-react';
 
 function App() {
   // Course Header State
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [year, setYear] = useState('');
   const [semester, setSemester] = useState('');
+  const [isSettingsExpanded, setIsSettingsExpanded] = useState(true);
 
   // Preference State
   const [mode, setMode] = useState<PreferenceMode>('A');
@@ -50,6 +51,7 @@ function App() {
     try {
       const response = await generateSchedule(payload);
       setResults(response);
+      setIsSettingsExpanded(false);
     } catch (err: any) {
       setError(err.message || "אירעה שגיאה בשרת");
     } finally {
@@ -60,11 +62,11 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-textPrimary p-4 md:p-8 font-sans" dir="rtl">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen flex flex-col bg-background text-textPrimary p-4 md:p-6 font-sans" dir="rtl">
+      <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col space-y-4 md:space-y-6">
         
         {/* Header */}
-        <header className="flex items-center gap-4 pb-4 border-b border-border">
+        <header className="flex items-center gap-4 pb-4 border-b border-border shrink-0">
           <div className="bg-primary/5 p-2 md:p-3 rounded-xl border border-primary/20 flex items-center justify-center relative overflow-hidden group shrink-0">
             <img 
               src="/favicon.svg" 
@@ -86,31 +88,56 @@ function App() {
           </div>
         </header>
 
-        {/* Top Controls Dashboard: Spacious double column configuration */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <CourseSelectionHeader 
-            selectedCourseIds={selectedCourseIds}
-            onChangeCourses={setSelectedCourseIds}
-            year={year}
-            onChangeYear={setYear}
-            semester={semester}
-            onChangeSemester={setSemester}
-          />
+        {/* Collapsible Header Accordion Strip */}
+        <div className="card shrink-0 overflow-hidden transition-all duration-300 border border-border/80 bg-surface/50 backdrop-blur-md">
+          <div 
+            className="p-4 flex items-center justify-between cursor-pointer hover:bg-surfaceHighlight/20 transition-colors"
+            onClick={() => setIsSettingsExpanded(!isSettingsExpanded)}
+          >
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-lg font-bold text-textPrimary m-0">הגדרות ואילוצים</h2>
+              {!isSettingsExpanded && (
+                <div className="flex items-center gap-2 text-xs text-textSecondary bg-surfaceHighlight/40 px-3 py-1 rounded-full border border-border/50">
+                  <span>שנה: {year || 'לא נבחרה'}</span>
+                  <span>|</span>
+                  <span>סמסטר: {semester === 'A' ? "א' (חורף)" : semester === 'B' ? "ב' (אביב)" : semester === 'Summer' ? "קיץ" : 'לא נבחר'}</span>
+                  <span>|</span>
+                  <span className="text-primary font-medium">{selectedCourseIds.length} קורסים נבחרו</span>
+                </div>
+              )}
+            </div>
+            <button className="text-textSecondary hover:text-textPrimary transition-colors p-1">
+              <ChevronDown className={`w-5 h-5 transform transition-transform duration-300 ${isSettingsExpanded ? 'rotate-180' : 'rotate-0'}`} />
+            </button>
+          </div>
 
-          <PreferenceToggle 
-            mode={mode}
-            onChangeMode={setMode}
-            maxDays={maxDays}
-            onChangeMaxDays={setMaxDays}
-            excludedDays={excludedDays}
-            onChangeExcludedDays={setExcludedDays}
-            preferredStartTimes={preferredStartTimes}
-            onChangePreferredStartTimes={setPreferredStartTimes}
-          />
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isSettingsExpanded ? 'max-h-[1200px] opacity-100 border-t border-border/50 p-6' : 'max-h-0 opacity-0'}`}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <CourseSelectionHeader 
+                selectedCourseIds={selectedCourseIds}
+                onChangeCourses={setSelectedCourseIds}
+                year={year}
+                onChangeYear={setYear}
+                semester={semester}
+                onChangeSemester={setSemester}
+              />
+
+              <PreferenceToggle 
+                mode={mode}
+                onChangeMode={setMode}
+                maxDays={maxDays}
+                onChangeMaxDays={setMaxDays}
+                excludedDays={excludedDays}
+                onChangeExcludedDays={setExcludedDays}
+                preferredStartTimes={preferredStartTimes}
+                onChangePreferredStartTimes={setPreferredStartTimes}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Centralized Action Dashboard Strip */}
-        <div className="card p-6 bg-surfaceHighlight/30 border-primary/20 flex flex-col items-center justify-center gap-4">
+        <div className="card shrink-0 p-6 bg-surfaceHighlight/30 border-primary/20 flex flex-col items-center justify-center gap-4">
           {error && (
             <div className="w-full max-w-2xl bg-danger/10 border border-danger/50 text-danger-light p-3 rounded-md flex items-start gap-2 text-sm">
               <AlertTriangle size={16} className="shrink-0 mt-0.5" />
@@ -129,7 +156,7 @@ function App() {
                 {isGenerating ? (
                   <>
                     <Loader2 className="animate-spin" size={22} />
-                    מחשב מסלולים אופטימליים...
+                    מייצר מערכת שעות אופטימלית...
                   </>
                 ) : (
                   "צור מערכת שעות אופטימלית"
@@ -176,7 +203,7 @@ function App() {
         </div>
 
         {/* Results Area Section: Spans full canvas width below settings */}
-        <div className="space-y-6 pt-4">
+        <div className="flex-1 flex flex-col pt-2 pb-2">
           {results?.warnings && (
             (results.warnings.invalid_courses && results.warnings.invalid_courses.length > 0) || 
             results.warnings.has_hard_violations

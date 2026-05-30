@@ -36,3 +36,17 @@
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-textSecondary;
 }
+
+@layer utilities {
+  .transition-height {
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease-out;
+  }
+  
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
