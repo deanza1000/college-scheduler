@@ -131,16 +131,26 @@ export function CourseSelectionHeader({
     if (!isOpen) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') {
         setIsOpen(true);
+        e.preventDefault();
+      } else if (e.key === 'Escape' && search !== '') {
+        setSearch('');
+        setFocusedIndex(0);
+        e.preventDefault();
+      } else if (e.key === 'Backspace' && search === '') {
+        e.preventDefault();
+        if (selectedCourseIds.length > 0) {
+          removeCourse(selectedCourseIds[selectedCourseIds.length - 1]);
+        }
       }
       return;
     }
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setFocusedIndex(prev => (prev < filteredCourses.length - 1 ? prev + 1 : prev));
+      setFocusedIndex(prev => (prev < filteredCourses.length - 1 ? prev + 1 : 0));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setFocusedIndex(prev => (prev > 0 ? prev - 1 : 0));
+      setFocusedIndex(prev => (prev > 0 ? prev - 1 : filteredCourses.length - 1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (filteredCourses.length > 0) {
@@ -152,6 +162,12 @@ export function CourseSelectionHeader({
       }
     } else if (e.key === 'Escape') {
       setIsOpen(false);
+      e.preventDefault();
+    } else if (e.key === 'Backspace' && search === '') {
+      e.preventDefault();
+      if (selectedCourseIds.length > 0) {
+        removeCourse(selectedCourseIds[selectedCourseIds.length - 1]);
+      }
     }
   };
 
@@ -214,42 +230,47 @@ export function CourseSelectionHeader({
           {isOpen && (
             <div
               ref={dropdownRef}
-              className="absolute top-full left-0 right-0 mt-1 bg-surfaceHighlight border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto"
+              className="absolute top-full left-0 right-0 mt-1 bg-surfaceHighlight border border-border rounded-md shadow-lg z-50 max-h-80 overflow-y-auto flex flex-col"
             >
-              {isLoading ? (
-                <div className="p-3 text-sm text-textSecondary text-center flex items-center justify-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-textSecondary border-t-transparent"></div>
-                  טוען קורסים...
-                </div>
-              ) : filteredCourses.length === 0 ? (
-                <div className="p-3 text-sm text-textSecondary text-center">לא נמצאו קורסים רלוונטיים לסמסטר זה</div>
-              ) : (
-                filteredCourses.map((course, index) => {
-                  const isSelected = selectedCourseIds.includes(course.id);
-                  const isFocused = index === focusedIndex;
-                  return (
-                    <div
-                      key={course.id}
-                      className={classNames(
-                        "px-3 py-2 text-sm cursor-pointer flex items-center justify-between transition-all",
-                        isFocused
-                          ? "bg-primary/20 border-r-4 border-primary font-medium"
-                          : isSelected
-                            ? "bg-primary/5 hover:bg-primary/10"
-                            : "hover:bg-primary/10",
-                        isSelected ? "text-primary" : "text-textPrimary"
-                      )}
-                      onClick={() => toggleCourse(course.id)}
-                    >
-                      <div className="flex flex-col">
-                        <span>{course.name}</span>
-                        <span className="text-xs text-textSecondary">{course.id}</span>
+              <div className="flex-1 overflow-y-auto">
+                {isLoading ? (
+                  <div className="p-3 text-sm text-textSecondary text-center flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-textSecondary border-t-transparent"></div>
+                    טוען קורסים...
+                  </div>
+                ) : filteredCourses.length === 0 ? (
+                  <div className="p-3 text-sm text-textSecondary text-center">לא נמצאו קורסים רלוונטיים לסמסטר זה</div>
+                ) : (
+                  filteredCourses.map((course, index) => {
+                    const isSelected = selectedCourseIds.includes(course.id);
+                    const isFocused = index === focusedIndex;
+                    return (
+                      <div
+                        key={course.id}
+                        className={classNames(
+                          "px-3 py-2 text-sm cursor-pointer flex items-center justify-between transition-all",
+                          isFocused
+                            ? "bg-primary/20 border-r-4 border-primary font-medium"
+                            : isSelected
+                              ? "bg-primary/5 hover:bg-primary/10"
+                              : "hover:bg-primary/10",
+                          isSelected ? "text-primary" : "text-textPrimary"
+                        )}
+                        onClick={() => toggleCourse(course.id)}
+                      >
+                        <div className="flex flex-col">
+                          <span>{course.name}</span>
+                          <span className="text-xs text-textSecondary">{course.id}</span>
+                        </div>
+                        {isSelected && <Check size={16} className="text-primary" />}
                       </div>
-                      {isSelected && <Check size={16} className="text-primary" />}
-                    </div>
-                  );
-                })
-              )}
+                    );
+                  })
+                )}
+              </div>
+              <div className="sticky bottom-0 bg-surfaceHighlight/95 backdrop-blur-sm border-t border-border/50 p-2 text-[11px] text-textSecondary text-center font-medium shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                ניווט: ↑↓ | בחירה: Enter | סגירה: Esc | מחיקה אחרונה: Backspace
+              </div>
             </div>
           )}
         </div>
