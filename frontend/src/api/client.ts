@@ -89,3 +89,35 @@ export async function generateSchedule(payload: ScheduleRequest): Promise<Schedu
     throw err;
   }
 }
+
+export interface ChatMessagePayload {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ToolCallInfo {
+  name: string;
+  args: Record<string, unknown>;
+}
+
+export interface ChatResponse {
+  content: string;
+  tools_called?: ToolCallInfo[];
+}
+
+export async function sendChatMessage(messages: ChatMessagePayload[]): Promise<ChatResponse> {
+  const res = await fetch(`${API_BASE}/api/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ messages })
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.detail || data.error || 'אירעה שגיאה בתקשורת עם השרת');
+  }
+  return data;
+}
+
