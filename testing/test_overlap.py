@@ -126,3 +126,37 @@ def test_api_schedule_with_max_overlap_minutes():
     response = client.post("/api/schedule", json=payload)
     assert response.status_code in [200, 400]
 
+def test_real_database_2027_a_3_days_60m_overlap():
+    from generate_schedule import get_courses_for_semester
+    import json
+    
+    course_ids = ["61767", "61761", "61765", "61775"]
+    courses_data = get_courses_for_semester("2027", "A")
+    weights_path = os.path.join(backend_dir, "weights.json")
+    with open(weights_path, "r", encoding="utf-8") as f:
+        weights = json.load(f)
+
+    engine = CourseSchedulerSA(
+        courses_data=courses_data,
+        weights=weights,
+        selected_course_ids=course_ids,
+        preferred_num_days=3,
+        preferred_start_times={d: "08:30" for d in ["א", "ב", "ג", "ד", "ה"]},
+        max_overlap_minutes=60
+    )
+    best_state, best_energy, has_hard = engine.optimize()
+    formatted = engine.format_schedule(best_state)
+
+    assert has_hard is False
+    assert set(formatted.keys()) == {"א", "ב", "ד"}
+    # Verify exactly 60 minute overlap on Wednesday (ד)
+    wed_sessions = formatted["ד"]
+    overlaps_found = []
+    for i in range(len(wed_sessions)):
+        for j in range(i + 1, len(wed_sessions)):
+            ov = engine.get_overlap(wed_sessions[i], wed_sessions[j])
+            if ov > 0:
+                overlaps_found.append(ov)
+    assert 60 in overlaps_found
+
+

@@ -121,8 +121,19 @@ class CourseSchedulerSA:
         
         for day, times in daily_schedules.items():
             times.sort() # sort by start time
-            for i in range(len(times) - 1):
-                gap = times[i+1][0] - times[i][1]
+            # Merge overlapping intervals to accurately calculate true free gaps
+            merged = []
+            for start, end in times:
+                if not merged:
+                    merged.append([start, end])
+                else:
+                    if start <= merged[-1][1]:
+                        merged[-1][1] = max(merged[-1][1], end)
+                    else:
+                        merged.append([start, end])
+
+            for i in range(len(merged) - 1):
+                gap = merged[i+1][0] - merged[i][1]
                 if gap > 0:
                     total_gap_minutes += gap
                     
