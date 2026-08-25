@@ -3,5 +3,6 @@
     "days_on_campus": 10.0,
     "start_time_deviation": 5.0,
     "exclude_days": 100000.0,
-    "preferred_num_days": 100000.0
+    "preferred_num_days": 100000.0,
+    "overlap": 1500.0
 }

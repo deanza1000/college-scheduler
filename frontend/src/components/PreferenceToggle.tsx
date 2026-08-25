@@ -12,6 +12,8 @@ interface PreferenceToggleProps {
   onChangeExcludedDays: (days: string[]) => void;
   preferredStartTimes: Record<string, string>;
   onChangePreferredStartTimes: (times: Record<string, string>) => void;
+  maxOverlapMinutes: number;
+  onChangeMaxOverlapMinutes: (minutes: number) => void;
 }
 
 const DAYS_OF_WEEK = [
@@ -22,6 +24,13 @@ const DAYS_OF_WEEK = [
   { id: 'ה', label: 'חמישי' },
 ];
 
+const OVERLAP_OPTIONS = [
+  { value: 0, title: 'ללא חפיפה', subtitle: 'ללא התנגשויות (מומלץ)', isWarning: false },
+  { value: 30, title: 'עד 30 דקות', subtitle: 'חפיפה קלה', isWarning: false },
+  { value: 60, title: 'עד שעה', subtitle: 'חפיפה בינונית', isWarning: false },
+  { value: -1, title: 'חפיפה מלאה', subtitle: 'ללא הגבלה', isWarning: true },
+];
+
 export function PreferenceToggle({
   mode,
   onChangeMode,
@@ -30,7 +39,9 @@ export function PreferenceToggle({
   excludedDays,
   onChangeExcludedDays,
   preferredStartTimes,
-  onChangePreferredStartTimes
+  onChangePreferredStartTimes,
+  maxOverlapMinutes,
+  onChangeMaxOverlapMinutes
 }: PreferenceToggleProps) {
   
   const toggleExcludeDay = (dayId: string) => {
@@ -119,6 +130,43 @@ export function PreferenceToggle({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Overlap Options Section */}
+      <div className="mt-8 pt-6 border-t border-border">
+        <label className="block text-sm font-medium text-textSecondary mb-3">
+          אפשרות חפיפה בין שיעורים:
+        </label>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {OVERLAP_OPTIONS.map((opt) => {
+            const isSelected = maxOverlapMinutes === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onChangeMaxOverlapMinutes(opt.value)}
+                className={classNames(
+                  "relative p-3 rounded-lg border text-right transition-all duration-200 flex flex-col justify-between gap-1 shadow-sm group cursor-pointer",
+                  isSelected
+                    ? "bg-primary/10 border-primary shadow-[0_0_12px_rgba(59,130,246,0.15)] ring-1 ring-primary/40"
+                    : "bg-surfaceHighlight/40 border-border/80 text-textSecondary hover:border-primary/40 hover:text-textPrimary hover:bg-surfaceHighlight/70"
+                )}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className={classNames("text-sm font-bold", isSelected ? "text-primary-light" : "text-textPrimary")}>
+                    {opt.title}
+                  </span>
+                  {opt.isWarning && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                      לא מומלץ
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs opacity-75">{opt.subtitle}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="mt-8 pt-6 border-t border-border">

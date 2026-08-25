@@ -1,11 +1,11 @@
 import random
 import math
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Optional, Tuple
 
 import copy
 
 class CourseSchedulerSA:
-    def __init__(self, courses_data: Dict[str, Dict[str, Dict[str, List[Dict[str, Any]]]]], weights: Dict[str, float], selected_course_ids: List[str] = None, exclude_days: List[str] = None, preferred_num_days: int = None, preferred_start_times: Dict[str, str] = None):
+    def __init__(self, courses_data: Dict[str, Dict[str, Dict[str, List[Dict[str, Any]]]]], weights: Dict[str, float], selected_course_ids: Optional[List[str]] = None, exclude_days: Optional[List[str]] = None, preferred_num_days: Optional[int] = None, preferred_start_times: Optional[Dict[str, str]] = None, max_overlap_minutes: Optional[int] = 0):
         """
         Initialize the Simulated Annealing engine.
         
@@ -16,6 +16,7 @@ class CourseSchedulerSA:
         :param exclude_days: Optional list of day strings to penalize (e.g. ["א", "ה"]).
         :param preferred_num_days: Optional target number of active campus days.
         :param preferred_start_times: Optional mapping of day string to preferred start time (HH:MM).
+        :param max_overlap_minutes: Optional maximum allowed overlap minutes per conflict (0=none, 30=max 30m, 60=max 1h, -1=unlimited).
         """
         if selected_course_ids:
             self.courses_data = {k: v for k, v in courses_data.items() if k in selected_course_ids}
@@ -26,6 +27,7 @@ class CourseSchedulerSA:
         self.exclude_days = exclude_days or []
         self.preferred_num_days = preferred_num_days
         self.preferred_start_times = preferred_start_times or {}
+        self.max_overlap_minutes = 0 if max_overlap_minutes is None else max_overlap_minutes
         self.course_ids = list(self.courses_data.keys())
 
     def time_to_minutes(self, t_str: str) -> int:
@@ -80,13 +82,27 @@ class CourseSchedulerSA:
                 hard_penalty += 100000
                 has_hard_violations = True
 
-        # Check for overlaps (Hard Constraint - Big M Method)
+        # Check for overlaps (Conditional Hard Constraint & Quadratic Soft Penalty)
+        total_overlap_soft_penalty = 0.0
+        overlap_weight = self.weights.get("overlap", 1500.0)
+
         for i in range(len(active_sessions)):
             for j in range(i + 1, len(active_sessions)):
                 overlap = self.get_overlap(active_sessions[i], active_sessions[j])
                 if overlap > 0:
-                    hard_penalty += 500000 * overlap
-                    has_hard_violations = True
+                    if self.max_overlap_minutes == -1:
+                        # Fully allowed: soft penalty only
+                        total_overlap_soft_penalty += overlap_weight * ((overlap / 30.0) ** 2)
+                    elif overlap <= self.max_overlap_minutes:
+                        # Within allowed threshold: soft penalty only
+                        total_overlap_soft_penalty += overlap_weight * ((overlap / 30.0) ** 2)
+                    else:
+                        # Exceeds threshold: hard violation on excess minutes
+                        excess = overlap - self.max_overlap_minutes
+                        hard_penalty += 500000 * excess
+                        has_hard_violations = True
+                        if self.max_overlap_minutes > 0:
+                            total_overlap_soft_penalty += overlap_weight * ((self.max_overlap_minutes / 30.0) ** 2)
 
         # Calculate soft constraints (Curved/Quadratic Penalties)
         soft_penalty = 0
@@ -139,6 +155,8 @@ class CourseSchedulerSA:
             excluded_count = sum(1 for s in active_sessions if s['day'] in self.exclude_days)
             soft_penalty += self.weights["exclude_days"] * (excluded_count ** 2)
 
+        # Overlap soft penalty
+        soft_penalty += total_overlap_soft_penalty
 
         total_energy = hard_penalty + soft_penalty
         return total_energy, has_hard_violations

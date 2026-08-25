@@ -20,6 +20,7 @@ function App() {
   const [maxDays, setMaxDays] = useState(4);
   const [excludedDays, setExcludedDays] = useState<string[]>([]);
   const [preferredStartTimes, setPreferredStartTimes] = useState<Record<string, string>>({});
+  const [maxOverlapMinutes, setMaxOverlapMinutes] = useState<number>(0);
 
   // Solving State
   const [isGenerating, setIsGenerating] = useState(false);
@@ -45,6 +46,7 @@ function App() {
       exclude_days: mode === 'B' ? excludedDays : [],
       preferred_num_days: mode === 'A' ? maxDays : null,
       preferred_start_times: preferredStartTimes,
+      max_overlap_minutes: maxOverlapMinutes,
       turnstile_token: turnstileToken
     };
 
@@ -131,6 +133,8 @@ function App() {
                 onChangeExcludedDays={setExcludedDays}
                 preferredStartTimes={preferredStartTimes}
                 onChangePreferredStartTimes={setPreferredStartTimes}
+                maxOverlapMinutes={maxOverlapMinutes}
+                onChangeMaxOverlapMinutes={setMaxOverlapMinutes}
               />
             </div>
           </div>

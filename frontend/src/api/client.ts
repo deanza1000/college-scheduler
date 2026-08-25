@@ -11,6 +11,7 @@ export interface ScheduleRequest {
   exclude_days: string[];
   preferred_num_days: number | null;
   preferred_start_times?: Record<string, string>;
+  max_overlap_minutes?: number;
   turnstile_token?: string | null;
 }
 

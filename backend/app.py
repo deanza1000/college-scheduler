@@ -40,6 +40,7 @@ class ScheduleRequest(BaseModel):
     exclude_days: Optional[List[str]] = None
     preferred_num_days: Optional[int] = None
     preferred_start_times: Optional[Dict[str, str]] = None
+    max_overlap_minutes: Optional[int] = 0
     turnstile_token: Optional[str] = None
 
 def verify_turnstile(token: Optional[str]) -> bool:
@@ -106,7 +107,8 @@ def generate_schedule_endpoint(req: ScheduleRequest):
             course_ids=req.course_ids,
             exclude_days=req.exclude_days,
             preferred_num_days=req.preferred_num_days,
-            preferred_start_times=req.preferred_start_times
+            preferred_start_times=req.preferred_start_times,
+            max_overlap_minutes=req.max_overlap_minutes if req.max_overlap_minutes is not None else 0
         )
 
         if "error" in result:
