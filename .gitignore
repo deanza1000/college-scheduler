@@ -7,3 +7,7 @@ __pycache__/
 /md_files
 /.superpowers
 docs/
+venv/
+backend/venv/
+node_modules/
+dist/

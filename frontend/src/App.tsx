@@ -4,11 +4,16 @@ import { CourseSelectionHeader } from './components/CourseSelectionHeader';
 import { PreferenceToggle } from './components/PreferenceToggle';
 import type { PreferenceMode } from './components/PreferenceToggle';
 import { ResultsTable } from './components/ResultsTable';
+import { AiAssistantChat } from './components/AiAssistantChat';
+import { Footer } from './components/Footer';
 import { generateSchedule } from './api/client';
+
 import type { ScheduleResponse, ScheduleRequest } from './api/client';
 import { Calendar, Loader2, AlertTriangle, Info, ChevronDown } from 'lucide-react';
 
 function App() {
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false);
+
   // Course Header State
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [year, setYear] = useState('');
@@ -242,7 +247,10 @@ function App() {
           )}
         </div>
 
+        {/* Footer */}
+        <Footer />
       </div>
+      <AiAssistantChat isOpen={isAiChatOpen} onToggle={() => setIsAiChatOpen(prev => !prev)} />
     </div>
   );
 }

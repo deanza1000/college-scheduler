@@ -9,14 +9,45 @@ sys.path.insert(0, backend_dir)
 from optimizer_engine import CourseSchedulerSA
 
 def load_data():
-    data_path = os.path.join(backend_dir, 'test_data.json')
     weights_path = os.path.join(backend_dir, 'weights.json')
-    
-    with open(data_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-        
     with open(weights_path, 'r', encoding='utf-8') as f:
         weights = json.load(f)
+        
+    data_path = os.path.join(backend_dir, 'test_data.json')
+    if os.path.exists(data_path):
+        with open(data_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    else:
+        try:
+            from data_service import parse_courses_to_json
+            json_str = parse_courses_to_json()
+            all_dict = json.loads(json_str)
+            year = list(all_dict.keys())[-1] if all_dict else "2026"
+            sem = list(all_dict[year].keys())[0] if year in all_dict and all_dict[year] else "B"
+            data = all_dict.get(year, {}).get(sem, {})
+        except Exception:
+            data = {}
+            
+    if not data:
+        # Stateless mock fallback dataset for unit testing
+        data = {
+            "61101": {
+                "הרצאה": {
+                    "101": [{"type": "הרצאה", "start_time": "08:30", "end_time": "11:30", "day": "ראשון", "room": "101", "instructor": "ד\"ר כהן", "course_name": "מבוא למדעי המחשב"}],
+                    "102": [{"type": "הרצאה", "start_time": "08:30", "end_time": "11:30", "day": "שלישי", "room": "101", "instructor": "ד\"ר כהן", "course_name": "מבוא למדעי המחשב"}]
+                },
+                "תרגול": {
+                    "103": [{"type": "תרגול", "start_time": "12:00", "end_time": "14:00", "day": "ראשון", "room": "102", "instructor": "לוי", "course_name": "מבוא למדעי המחשב"}],
+                    "104": [{"type": "תרגול", "start_time": "12:00", "end_time": "14:00", "day": "שלישי", "room": "102", "instructor": "לוי", "course_name": "מבוא למדעי המחשב"}]
+                }
+            },
+            "61102": {
+                "הרצאה": {
+                    "201": [{"type": "הרצאה", "start_time": "09:00", "end_time": "12:00", "day": "ראשון", "room": "201", "instructor": "פרופ' ישראל", "course_name": "חדווא 1"}],
+                    "202": [{"type": "הרצאה", "start_time": "09:00", "end_time": "12:00", "day": "חמישי", "room": "201", "instructor": "פרופ' ישראל", "course_name": "חדווא 1"}]
+                }
+            }
+        }
         
     return data, weights
 
