@@ -179,9 +179,9 @@ export function CourseSelectionHeader({
   };
 
   return (
-    <div className="card p-6 flex flex-col gap-6" dir="rtl">
+    <div className="flex flex-col gap-4" dir="rtl">
       <div>
-        <h2 className="text-xl font-bold mb-4">בחר קורסים</h2>
+        <h3 className="text-sm font-semibold text-textPrimary mb-2.5">בחר קורסים</h3>
 
         <div className="relative" ref={wrapperRef}>
           {/* Multi-select input area */}

@@ -1,12 +1,16 @@
 import os
 import io
 import json
+import hmac
+import hashlib
+import secrets
+import time
 import logging
 import httpx
 import uvicorn
 import pypdf
 from typing import List, Optional, Dict, Any
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -43,6 +47,7 @@ app.add_middleware(
 
 TURNSTILE_SECRET_KEY = os.environ.get("TURNSTILE_SECRET_KEY")
 BRAUDE_MCP_URL = os.environ.get("BRAUDE_MCP_URL", "https://braude-mcp.oshri-mcp.workers.dev/mcp")
+CLEARANCE_TTL_SECONDS = 8 * 3600
 
 class ChatMessage(BaseModel):
     role: str
@@ -210,7 +215,9 @@ class ScheduleRequest(BaseModel):
     preferred_num_days: Optional[int] = None
     preferred_start_times: Optional[Dict[str, str]] = None
     max_overlap_minutes: Optional[int] = 0
-    turnstile_token: Optional[str] = None
+
+class VerifyRequest(BaseModel):
+    turnstile_token: str
 
 def verify_turnstile(token: Optional[str]) -> bool:
     """
@@ -239,6 +246,55 @@ def verify_turnstile(token: Optional[str]) -> bool:
         logger.error(f"Error during Turnstile verification API call: {e}")
         return False
 
+def issue_clearance(expires_at: int) -> str:
+    """Issue a stateless HMAC clearance token. No server-side session store."""
+    if not TURNSTILE_SECRET_KEY:
+        return "orca-dev"
+    nonce = secrets.token_urlsafe(16)
+    payload = f"orca1.{expires_at}.{nonce}"
+    signature = hmac.new(
+        TURNSTILE_SECRET_KEY.encode("utf-8"),
+        payload.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"{payload}.{signature}"
+
+def verify_clearance(token: Optional[str]) -> bool:
+    """Validate an HMAC clearance token without server-side state."""
+    if not TURNSTILE_SECRET_KEY:
+        return True
+    if not token:
+        logger.warning("Clearance token missing in secure mode.")
+        return False
+    try:
+        payload, signature = token.rsplit(".", 1)
+        expected = hmac.new(
+            TURNSTILE_SECRET_KEY.encode("utf-8"),
+            payload.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(expected, signature):
+            logger.warning("Clearance token signature mismatch.")
+            return False
+        parts = payload.split(".")
+        if len(parts) != 3 or parts[0] != "orca1":
+            logger.warning("Clearance token has an invalid payload shape.")
+            return False
+        if int(parts[1]) < time.time():
+            logger.warning("Clearance token expired.")
+            return False
+        return True
+    except Exception as e:
+        logger.warning(f"Invalid clearance token: {e}")
+        return False
+
+def require_clearance(token: Optional[str]) -> None:
+    if not verify_clearance(token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bot protection verification failed. Please refresh and try again."
+        )
+
 @app.get("/api/courses", summary="Get distinct available courses")
 def get_courses(year: Optional[str] = None, semester: Optional[str] = None):
     """
@@ -255,20 +311,35 @@ def get_courses(year: Optional[str] = None, semester: Optional[str] = None):
             detail=f"Internal server error: {e}"
         )
 
-@app.post("/api/schedule", summary="Generate optimized schedule")
-def generate_schedule_endpoint(req: ScheduleRequest):
+@app.post("/api/verify", summary="Exchange a Turnstile token for site clearance")
+def verify_access(req: VerifyRequest):
     """
-    Executes the Simulated Annealing engine to generate an optimal schedule.
-    Includes Cloudflare Turnstile verification protection.
+    Redeems a one-time Cloudflare Turnstile token and returns a stateless
+    HMAC clearance used by subsequent protected API calls.
     """
-    # 1. Verify Turnstile token to guard against automated spam
     if not verify_turnstile(req.turnstile_token):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Bot protection verification failed. Please try again."
         )
+    expires_at = int(time.time()) + CLEARANCE_TTL_SECONDS
+    return {
+        "clearance": issue_clearance(expires_at),
+        "expires_at": expires_at
+    }
 
-    # 2. Execute scheduler logic
+@app.post("/api/schedule", summary="Generate optimized schedule")
+def generate_schedule_endpoint(
+    req: ScheduleRequest,
+    x_orca_clearance: Optional[str] = Header(default=None, alias="X-Orca-Clearance")
+):
+    """
+    Executes the Simulated Annealing engine to generate an optimal schedule.
+    Requires a clearance token issued by POST /api/verify after Turnstile.
+    """
+    require_clearance(x_orca_clearance)
+
+    # Execute scheduler logic
     try:
         result = run_scheduler(
             year=req.year,
@@ -297,7 +368,11 @@ def generate_schedule_endpoint(req: ScheduleRequest):
         )
 
 @app.post("/api/chat", summary="AI Chat Assistant with Ort Braude MCP Integration & PDF Syllabus Scanning")
-async def chat_endpoint(req: ChatRequest):
+async def chat_endpoint(
+    req: ChatRequest,
+    x_orca_clearance: Optional[str] = Header(default=None, alias="X-Orca-Clearance")
+):
+    require_clearance(x_orca_clearance)
     gemini_key = os.environ.get("GEMINI_API_KEY")
     if not gemini_key:
         raise HTTPException(

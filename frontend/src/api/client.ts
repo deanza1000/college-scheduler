@@ -12,7 +12,6 @@ export interface ScheduleRequest {
   preferred_num_days: number | null;
   preferred_start_times?: Record<string, string>;
   max_overlap_minutes?: number;
-  turnstile_token?: string | null;
 }
 
 export interface Event {
@@ -38,6 +37,98 @@ export interface ScheduleResponse {
 
 // Support dynamic API targeting when deployed, falling back to empty string for relative proxying
 const API_BASE = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'https://spork-scheduler-backend.onrender.com');
+
+const CLEARANCE_STORAGE_KEY = 'orca_clearance';
+export const CLEARANCE_EXPIRED_EVENT = 'orca-clearance-expired';
+
+interface StoredClearance {
+  token: string;
+  expiresAt: number;
+}
+
+export class ClearanceExpiredError extends Error {
+  constructor() {
+    super('נדרש אימות אבטחה מחדש');
+    this.name = 'ClearanceExpiredError';
+  }
+}
+
+export function getClearance(): string | null {
+  try {
+    const raw = localStorage.getItem(CLEARANCE_STORAGE_KEY);
+    if (!raw) return null;
+    const stored = JSON.parse(raw) as StoredClearance;
+    if (!stored?.token || !stored.expiresAt || Date.now() / 1000 >= stored.expiresAt) {
+      localStorage.removeItem(CLEARANCE_STORAGE_KEY);
+      return null;
+    }
+    return stored.token;
+  } catch {
+    localStorage.removeItem(CLEARANCE_STORAGE_KEY);
+    return null;
+  }
+}
+
+export function hasValidClearance(): boolean {
+  return getClearance() !== null;
+}
+
+export function storeClearance(token: string, expiresAt: number): void {
+  localStorage.setItem(CLEARANCE_STORAGE_KEY, JSON.stringify({ token, expiresAt }));
+}
+
+export function clearClearance(): void {
+  localStorage.removeItem(CLEARANCE_STORAGE_KEY);
+}
+
+function authHeaders(): Record<string, string> {
+  const clearance = getClearance();
+  return clearance ? { 'X-Orca-Clearance': clearance } : {};
+}
+
+function rejectIfClearanceExpired(res: Response): void {
+  if (res.status !== 403) return;
+  clearClearance();
+  window.dispatchEvent(new Event(CLEARANCE_EXPIRED_EVENT));
+  throw new ClearanceExpiredError();
+}
+
+function readApiError(data: unknown): string | null {
+  if (!data || typeof data !== 'object') return null;
+  const detail = (data as { detail?: unknown; error?: unknown }).detail;
+  const error = (data as { error?: unknown }).error;
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (typeof error === 'string' && error.trim()) return error;
+  return null;
+}
+
+export async function verifyHuman(turnstileToken: string): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ turnstile_token: turnstileToken })
+    });
+  } catch {
+    throw new Error('לא ניתן להתחבר לשרת האימות. ודא שה-backend רץ.');
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error('נתיב האימות לא נמצא בשרת. ייתכן שה-backend לא עודכן.');
+    }
+    if (res.status >= 500) {
+      throw new Error('השרת לא זמין לאימות. ודא שה-backend רץ.');
+    }
+    throw new Error(readApiError(data) || 'אימות האבטחה נכשל');
+  }
+  if (!data?.clearance || !data?.expires_at) {
+    throw new Error('אימות האבטחה נכשל');
+  }
+  storeClearance(data.clearance, data.expires_at);
+}
 
 export interface CoursesResponse {
   courses: Course[];
@@ -75,11 +166,13 @@ export async function generateSchedule(payload: ScheduleRequest): Promise<Schedu
     const res = await fetch(`${API_BASE}/api/schedule`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...authHeaders()
       },
       body: JSON.stringify(payload)
     });
     
+    rejectIfClearanceExpired(res);
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.detail || data.error || 'Server error');
@@ -110,11 +203,13 @@ export async function sendChatMessage(messages: ChatMessagePayload[]): Promise<C
   const res = await fetch(`${API_BASE}/api/chat`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      ...authHeaders()
     },
     body: JSON.stringify({ messages })
   });
 
+  rejectIfClearanceExpired(res);
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.detail || data.error || 'אירעה שגיאה בתקשורת עם השרת');

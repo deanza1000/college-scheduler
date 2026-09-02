@@ -1,18 +1,25 @@
-import { useState } from 'react';
-import { Turnstile } from '@marsidev/react-turnstile';
+import { useEffect, useState } from 'react';
 import { CourseSelectionHeader } from './components/CourseSelectionHeader';
 import { PreferenceToggle } from './components/PreferenceToggle';
 import type { PreferenceMode } from './components/PreferenceToggle';
 import { ResultsTable } from './components/ResultsTable';
 import { AiAssistantChat } from './components/AiAssistantChat';
+import { AccessGate } from './components/AccessGate';
 import { Footer } from './components/Footer';
-import { generateSchedule } from './api/client';
+import { CLEARANCE_EXPIRED_EVENT, generateSchedule, hasValidClearance } from './api/client';
 
 import type { ScheduleResponse, ScheduleRequest } from './api/client';
 import { Calendar, Loader2, AlertTriangle, Info, ChevronDown } from 'lucide-react';
 
 function App() {
+  const [isVerified, setIsVerified] = useState(() => hasValidClearance());
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
+
+  useEffect(() => {
+    const handleExpired = () => setIsVerified(false);
+    window.addEventListener(CLEARANCE_EXPIRED_EVENT, handleExpired);
+    return () => window.removeEventListener(CLEARANCE_EXPIRED_EVENT, handleExpired);
+  }, []);
 
   // Course Header State
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
@@ -31,8 +38,6 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [results, setResults] = useState<ScheduleResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const [turnstileKey, setTurnstileKey] = useState(0);
 
   const handleGenerate = async () => {
     if (selectedCourseIds.length === 0) {
@@ -51,8 +56,7 @@ function App() {
       exclude_days: mode === 'B' ? excludedDays : [],
       preferred_num_days: mode === 'A' ? maxDays : null,
       preferred_start_times: preferredStartTimes,
-      max_overlap_minutes: maxOverlapMinutes,
-      turnstile_token: turnstileToken
+      max_overlap_minutes: maxOverlapMinutes
     };
 
     try {
@@ -63,14 +67,16 @@ function App() {
       setError(err.message || "אירעה שגיאה בשרת");
     } finally {
       setIsGenerating(false);
-      setTurnstileToken(null);
-      setTurnstileKey(prev => prev + 1);
     }
   };
 
+  if (!isVerified) {
+    return <AccessGate onVerified={() => setIsVerified(true)} />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-textPrimary p-4 md:p-6 font-sans" dir="rtl">
-      <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col space-y-4 md:space-y-6">
+      <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col space-y-3 md:space-y-4">
         
         {/* Header */}
         <header className="flex items-center gap-4 pb-4 border-b border-border shrink-0">
@@ -95,14 +101,14 @@ function App() {
           </div>
         </header>
 
-        {/* Collapsible Header Accordion Strip */}
+        {/* Unified settings + generate panel */}
         <div className="card shrink-0 overflow-hidden transition-all duration-300 border border-border/80 bg-surface/50 backdrop-blur-md">
           <div 
-            className="p-4 flex items-center justify-between cursor-pointer hover:bg-surfaceHighlight/20 transition-colors"
+            className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surfaceHighlight/20 transition-colors"
             onClick={() => setIsSettingsExpanded(!isSettingsExpanded)}
           >
             <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-lg font-bold text-textPrimary m-0">הגדרות ואילוצים</h2>
+              <h2 className="text-base font-bold text-textPrimary m-0">הגדרות ואילוצים</h2>
               {!isSettingsExpanded && (
                 <div className="flex items-center gap-2 text-xs text-textSecondary bg-surfaceHighlight/40 px-3 py-1 rounded-full border border-border/50">
                   <span>שנה: {year || 'לא נבחרה'}</span>
@@ -113,106 +119,77 @@ function App() {
                 </div>
               )}
             </div>
-            <button className="text-textSecondary hover:text-textPrimary transition-colors p-1">
+            <button type="button" className="text-textSecondary hover:text-textPrimary transition-colors p-1" aria-label="הרחב או כווץ הגדרות">
               <ChevronDown className={`w-5 h-5 transform transition-transform duration-300 ${isSettingsExpanded ? 'rotate-180' : 'rotate-0'}`} />
             </button>
           </div>
 
-          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isSettingsExpanded ? 'max-h-[1200px] opacity-100 border-t border-border/50 p-6' : 'max-h-0 opacity-0'}`}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <CourseSelectionHeader 
-                selectedCourseIds={selectedCourseIds}
-                onChangeCourses={setSelectedCourseIds}
-                year={year}
-                onChangeYear={setYear}
-                semester={semester}
-                onChangeSemester={setSemester}
-              />
-
-              <PreferenceToggle 
-                mode={mode}
-                onChangeMode={setMode}
-                maxDays={maxDays}
-                onChangeMaxDays={setMaxDays}
-                excludedDays={excludedDays}
-                onChangeExcludedDays={setExcludedDays}
-                preferredStartTimes={preferredStartTimes}
-                onChangePreferredStartTimes={setPreferredStartTimes}
-                maxOverlapMinutes={maxOverlapMinutes}
-                onChangeMaxOverlapMinutes={setMaxOverlapMinutes}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Centralized Action Dashboard Strip */}
-        <div className="card shrink-0 p-6 bg-surfaceHighlight/30 border-primary/20 flex flex-col items-center justify-center gap-4">
-          {error && (
-            <div className="w-full max-w-2xl bg-danger/10 border border-danger/50 text-danger-light p-3 rounded-md flex items-start gap-2 text-sm">
-              <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <div className="w-full max-w-md flex flex-col items-center gap-5 mx-auto">
-            {/* Submit Trigger Action */}
-            <div className="w-full">
-              <button 
-                onClick={handleGenerate}
-                disabled={isGenerating || selectedCourseIds.length === 0 || !turnstileToken}
-                className="w-full btn-primary py-4 text-lg font-bold flex items-center justify-center gap-2 shadow-lg transition-all duration-200"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="animate-spin" size={22} />
-                    מייצר מערכת שעות אופטימלית...
-                  </>
-                ) : (
-                  "צור מערכת שעות אופטימלית"
-                )}
-              </button>
-              {selectedCourseIds.length === 0 && (
-                <p className="text-xs text-textSecondary mt-2 text-center flex items-center justify-center gap-1">
-                  <Info size={12} /> אנא בחר קורסים מהרשימה העליונה לפני היצירה
-                </p>
-              )}
-              <p className="text-xs text-textSecondary/80 mt-3 text-center flex items-center justify-center gap-1">
-                <Info size={14} className="text-primary-light shrink-0" />
-                שימו לב: המערכת יכולה להפיק מערכת שעות שאינה אופטימלית, ומיועדת להרצה מספר פעמים כדי למצוא מערכת טובה.
-              </p>
-            </div>
-
-            {/* Seamlessly Integrated Cloudflare Turnstile Verification Area */}
-            <div className="w-full flex flex-col items-center justify-center pt-1">
-              <div className="inline-flex flex-col items-center rounded-xl bg-background/50 p-2 border border-border/40 shadow-inner backdrop-blur-sm max-w-full overflow-hidden transition-all duration-300 hover:border-border/80" dir="ltr">
-                <Turnstile
-                  key={turnstileKey}
-                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
-                  onSuccess={(token) => setTurnstileToken(token)}
-                  onError={() => setError("אימות האבטחה נכשל. אנא נסה שוב.")}
-                  options={{
-                    theme: 'dark',
-                    size: 'flexible'
-                  }}
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isSettingsExpanded ? 'max-h-[1400px] opacity-100 border-t border-border/50' : 'max-h-0 opacity-0'}`}>
+            <div className="grid grid-cols-1 lg:grid-cols-2">
+              <div className="order-1 p-4 pb-2 lg:p-5 lg:pb-3 lg:border-l border-border/40 lg:col-start-1 lg:row-start-1">
+                <CourseSelectionHeader 
+                  selectedCourseIds={selectedCourseIds}
+                  onChangeCourses={setSelectedCourseIds}
+                  year={year}
+                  onChangeYear={setYear}
+                  semester={semester}
+                  onChangeSemester={setSemester}
                 />
               </div>
-              <div className="mt-2 text-center h-4 flex items-center justify-center">
-                {!turnstileToken ? (
-                  <span className="text-xs text-amber-500/90 flex items-center gap-1.5 font-medium animate-pulse" dir="rtl">
-                    <Info size={13} className="shrink-0" /> מוודא חיבור מאובטח לפני שליחה...
-                  </span>
-                ) : (
-                  <span className="text-xs text-success/90 flex items-center gap-1.5 font-medium" dir="rtl">
-                    <span className="w-2 h-2 rounded-full bg-success animate-pulse shrink-0" /> חיבור מאובטח ומאומת
-                  </span>
+
+              <div className="order-3 px-4 pb-4 pt-3 lg:px-5 lg:pb-5 lg:border-l border-t border-border/40 space-y-3 lg:col-start-1 lg:row-start-2">
+                {error && (
+                  <div className="bg-danger/10 border border-danger/50 text-danger-light p-2.5 rounded-md flex items-start gap-2 text-sm">
+                    <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                    <span>{error}</span>
+                  </div>
                 )}
+
+                <button 
+                  onClick={handleGenerate}
+                  disabled={isGenerating || selectedCourseIds.length === 0}
+                  className="w-full btn-primary py-3 text-base font-bold flex items-center justify-center gap-2 shadow-md transition-all duration-200"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="animate-spin" size={20} />
+                      מייצר מערכת שעות אופטימלית...
+                    </>
+                  ) : (
+                    "צור מערכת שעות אופטימלית"
+                  )}
+                </button>
+                {selectedCourseIds.length === 0 && (
+                  <p className="text-xs text-textSecondary flex items-center gap-1">
+                    <Info size={12} className="shrink-0" /> אנא בחר קורסים מהרשימה לפני היצירה
+                  </p>
+                )}
+                <p className="text-xs text-textSecondary/80 flex items-start gap-1.5 leading-relaxed">
+                  <Info size={13} className="text-primary-light shrink-0 mt-px" />
+                  המערכת יכולה להפיק מערכת שאינה אופטימלית — מומלץ להריץ כמה פעמים כדי למצוא מערכת טובה.
+                </p>
+              </div>
+
+              <div className="order-2 p-4 lg:p-5 border-t lg:border-t-0 border-border/40 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+                <PreferenceToggle 
+                  mode={mode}
+                  onChangeMode={setMode}
+                  maxDays={maxDays}
+                  onChangeMaxDays={setMaxDays}
+                  excludedDays={excludedDays}
+                  onChangeExcludedDays={setExcludedDays}
+                  preferredStartTimes={preferredStartTimes}
+                  onChangePreferredStartTimes={setPreferredStartTimes}
+                  maxOverlapMinutes={maxOverlapMinutes}
+                  onChangeMaxOverlapMinutes={setMaxOverlapMinutes}
+                />
               </div>
             </div>
           </div>
         </div>
 
         {/* Results Area Section: Spans full canvas width below settings */}
-        <div className="flex-1 flex flex-col pt-2 pb-2">
+        <div className="flex-1 flex flex-col">
           {results?.warnings && (
             (results.warnings.invalid_courses && results.warnings.invalid_courses.length > 0) || 
             results.warnings.has_hard_violations
@@ -231,7 +208,7 @@ function App() {
           )}
 
           {isGenerating ? (
-            <div className="card p-12 flex flex-col items-center justify-center min-h-[400px]">
+            <div className="card p-8 flex flex-col items-center justify-center min-h-[240px]">
               <Loader2 className="animate-spin text-primary mb-4" size={48} />
               <h3 className="text-xl font-medium">המנוע מחפש את המערכת האופטימלית...</h3>
               <p className="text-textSecondary mt-2">זה עשוי לקחת מספר שניות</p>
@@ -239,8 +216,8 @@ function App() {
           ) : results ? (
             <ResultsTable scheduleData={results.schedule} />
           ) : (
-            <div className="card p-12 flex flex-col items-center justify-center min-h-[400px] border-dashed border-2 border-border/50 bg-transparent shadow-none">
-              <Calendar size={64} className="text-border mb-4" />
+            <div className="card p-8 flex flex-col items-center justify-center min-h-[240px] border-dashed border-2 border-border/50 bg-transparent shadow-none">
+              <Calendar size={48} className="text-border mb-3" />
               <h3 className="text-lg font-medium text-textSecondary">המערכת האופטימלית שלך תופיע כאן</h3>
               <p className="text-textSecondary/70 mt-1 text-sm">הגדר את הקורסים והאילוצים בלוח הבקרה העליון ולחץ על היצירה</p>
             </div>

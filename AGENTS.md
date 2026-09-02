@@ -22,7 +22,7 @@ Welcome to **Professor Orca (College Scheduler)**. This document establishes the
 - **Framework**: React 19 + TypeScript + Vite
 - **Styling**: Tailwind CSS (v3.4) with dark glassmorphic design and custom RTL styling (`App.css`, `index.css`)
 - **Icons**: `lucide-react`
-- **Security / Captcha**: Cloudflare Turnstile via `@marsidev/react-turnstile`
+- **Security / Captcha**: Cloudflare Turnstile entry gate (`AccessGate.tsx`) via `@marsidev/react-turnstile`; a one-time siteverify exchanges the widget token for an 8-hour HMAC clearance stored in `localStorage`
 - **Exporting**: `html2canvas` for downloading schedule grids as images
 - **Markdown Rendering**: Custom React renderer (`MarkdownRenderer.tsx`) using `react-markdown` & `remark-gfm` with GFM tables, LTR code blocks, copy buttons, and RTL styling for AI assistant responses
 
@@ -47,7 +47,7 @@ college-scheduler/
 ├── AGENTS.md                  # Instructions & rules for AI agents (This file)
 ├── README.md                  # Public project documentation & setup guide
 ├── backend/
-│   ├── app.py                 # FastAPI application, routes, Gemini AI & MCP tool dispatcher
+│   ├── app.py                 # FastAPI application, routes, Gemini AI, MCP dispatcher, Turnstile clearance
 │   ├── data_service.py        # Remote SQLite DB downloader, caching layer, course queries
 │   ├── optimizer_engine.py    # Simulated Annealing algorithm (CourseSchedulerSA)
 │   ├── web_generate_schedule.py # High-level wrapper bridging API payload to optimizer
@@ -59,6 +59,7 @@ college-scheduler/
 │   │   ├── App.tsx            # Main application component & layout
 │   │   ├── api/client.ts      # Type-safe API client for backend communication
 │   │   ├── components/
+│   │   │   ├── AccessGate.tsx        # Cloudflare Turnstile site-entry verification screen
 │   │   │   ├── AiAssistantChat.tsx    # AI Assistant side drawer / chat interface
 │   │   │   ├── CourseCard.tsx        # Individual course selector card
 │   │   │   ├── CourseSelectionHeader.tsx # Header controls, search & filters
@@ -114,6 +115,6 @@ college-scheduler/
 
 The following environment variables are utilized by the system:
 - `GEMINI_API_KEY`: Key for Google Gemini AI inference.
-- `TURNSTILE_SECRET_KEY`: Cloudflare Turnstile siteverify secret key.
+- `TURNSTILE_SECRET_KEY`: Cloudflare Turnstile siteverify secret key (also used to HMAC-sign 8-hour site clearance tokens from `POST /api/verify`).
 - `BRAUDE_DB_URL`: Remote URL to the latest Braude course database.
 - `BRAUDE_MCP_URL`: Endpoint for Braude MCP server (`https://braude-mcp.oshri-mcp.workers.dev/mcp`).

@@ -24,7 +24,7 @@
 
 **Professor Orca** is a full-stack automated schedule builder and AI academic assistant engineered specifically for Ort Braude College students.
 
-Finding an optimal schedule without time conflicts, minimized campus days, and aligned with personal preferences is often time-consuming. **Professor Orca** solves this by leveraging a **Simulated Annealing** optimization engine alongside a **Gemini AI Assistant** connected to live Model Context Protocol (MCP) data services.
+Finding an optimal schedule without time conflicts, minimized campus days, and aligned with personal preferences is often time-consuming. **Professor Orca** solves this by leveraging a **Simulated Annealing** optimization engine alongside a **Gemini AI Assistant** connected to live Braude data through [**braude-mcp**](https://github.com/oshriagronov/braude-mcp) — a Model Context Protocol (MCP) server for Ort Braude College.
 
 ---
 
@@ -37,8 +37,8 @@ Finding an optimal schedule without time conflicts, minimized campus days, and a
   - **Custom Start Times**: Custom preferred daily start times for every single day.
 
 - 🤖 **Professor Orca AI Assistant**:
-  - Powered by **Google Gemini AI** integrated with **Model Context Protocol (MCP)**.
-  - Direct access to course schedules, course prerequisites, academic calendars, exam schedules, and holiday dates.
+  - Powered by **Google Gemini AI** with function calling against the [**braude-mcp**](https://github.com/oshriagronov/braude-mcp) MCP server.
+  - Live tools for course search, weekly course schedules, academic calendars (semesters, exams, holidays), and syllabus PDF scanning.
   - Full **Markdown Rendering** support with rich code blocks, tables, lists, formatted text, and one-click answer copying.
 
 - 📄 **Live Syllabus PDF Extraction**:
@@ -51,7 +51,7 @@ Finding an optimal schedule without time conflicts, minimized campus days, and a
   - One-click **PNG Export** (`html2canvas`) to save and share schedule grids.
 
 - 🔒 **Cloudflare Turnstile Bot Protection**:
-  - Integrated human verification guarding schedule generation endpoints against automated abuse.
+  - Full-page entry gate verifies visitors on arrival. After Cloudflare siteverify, the backend issues a stateless 8-hour HMAC clearance (`POST /api/verify`) used by `/api/schedule` and `/api/chat`.
 
 ---
 
@@ -63,9 +63,9 @@ Finding an optimal schedule without time conflicts, minimized campus days, and a
 | **Styling** | Tailwind CSS v3.4 | Dark glassmorphism UI design system with RTL support |
 | **Backend API** | FastAPI + Uvicorn | High-performance Python async backend |
 | **Optimization** | Simulated Annealing | Multi-objective probabilistic schedule solver (`optimizer_engine.py`) |
-| **AI Engine** | Gemini 2.5 + MCP Tools | Function-calling AI assistant linked to Braude MCP endpoints |
+| **AI Engine** | Gemini + [braude-mcp](https://github.com/oshriagronov/braude-mcp) | Function-calling assistant; tools/resources served by the Braude MCP Worker |
 | **Data Layer** | Ephemeral SQLite Cache | Downloaded on-demand to `/tmp/braude_cached.sqlite` (1h TTL) |
-| **Security** | Cloudflare Turnstile | Anti-bot verification integration |
+| **Security** | Cloudflare Turnstile | Entry-gate siteverify + HMAC clearance for protected APIs |
 
 ---
 
@@ -92,6 +92,25 @@ college-scheduler/
     ├── test_engine.py         # Optimization engine unit tests
     └── test_e2e_preview.py     # End-to-end integration tests
 ```
+
+---
+
+## 🔌 Braude MCP / שרת הנתונים האקדמי
+
+The AI assistant does not scrape Braude pages itself. It calls **[braude-mcp](https://github.com/oshriagronov/braude-mcp)** — a Cloudflare Worker that exposes Ort Braude public academic data over the [Model Context Protocol](https://modelcontextprotocol.io/).
+
+| | |
+| :--- | :--- |
+| **Repository** | [github.com/oshriagronov/braude-mcp](https://github.com/oshriagronov/braude-mcp) |
+| **Live MCP endpoint** | `https://braude-mcp.oshri-mcp.workers.dev/mcp` (`BRAUDE_MCP_URL`) |
+
+Professor Orca’s backend (`backend/app.py`) sends JSON-RPC `tools/call` requests to that endpoint when Gemini selects a tool. The MCP server currently provides:
+
+- **`search_courses`** — find courses by name, code, or department
+- **`get_course_schedule`** — lectures, labs, instructors, rooms, times, and syllabus URL for a course code
+- **`get_academic_calendar`** — semester dates, exam periods, registration windows, holidays
+
+Syllabus PDFs are downloaded and parsed in this backend (`pypdf`) after MCP returns a syllabus URL. The scheduler’s course catalog still comes from the cached Braude SQLite database (`data_service.py`). MCP is the live data plane for the chatbot.
 
 ---
 

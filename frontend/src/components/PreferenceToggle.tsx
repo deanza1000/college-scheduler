@@ -53,10 +53,10 @@ export function PreferenceToggle({
   };
 
   return (
-    <div className="card p-6" dir="rtl">
-      <h2 className="text-xl font-bold mb-4">העדפות מערכת</h2>
+    <div dir="rtl">
+      <h3 className="text-sm font-semibold text-textPrimary mb-2.5">אילוצים והעדפות</h3>
       
-      <div className="flex bg-surfaceHighlight p-1 rounded-md mb-6">
+      <div className="flex bg-surfaceHighlight p-1 rounded-md mb-4">
         <button
           className={classNames(
             "flex-1 py-2 text-sm font-medium rounded transition-colors",
@@ -77,10 +77,10 @@ export function PreferenceToggle({
         </button>
       </div>
 
-      <div className="min-h-[100px]">
+      <div>
         {mode === 'A' ? (
           <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-            <label className="block text-sm font-medium text-textSecondary mb-4">
+            <label className="block text-sm font-medium text-textSecondary mb-2.5">
               כמה ימים לכל היותר תרצה להגיע לקמפוס בשבוע? ({maxDays} ימים)
             </label>
             <input
@@ -103,10 +103,10 @@ export function PreferenceToggle({
           </div>
         ) : (
           <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-            <label className="block text-sm font-medium text-textSecondary mb-4">
+            <label className="block text-sm font-medium text-textSecondary mb-2.5">
               סמן את הימים בהם אינך יכול להגיע לקמפוס:
             </label>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {DAYS_OF_WEEK.map(day => {
                 const isExcluded = excludedDays.includes(day.id);
                 return (
@@ -114,7 +114,7 @@ export function PreferenceToggle({
                     key={day.id}
                     onClick={() => toggleExcludeDay(day.id)}
                     className={classNames(
-                      "flex-1 min-w-[85px] py-3 rounded-md border text-sm font-medium transition-all duration-200 flex flex-col items-center gap-1 shadow-sm",
+                      "flex-1 min-w-[72px] py-2 rounded-md border text-sm font-medium transition-all duration-200 flex flex-col items-center gap-0.5 shadow-sm",
                       isExcluded 
                         ? "bg-red-500/10 border-red-500/30 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.05)]" 
                         : "bg-surfaceHighlight/40 border-border/80 text-textSecondary hover:border-primary/50 hover:text-textPrimary hover:bg-surfaceHighlight/80"
@@ -133,11 +133,11 @@ export function PreferenceToggle({
       </div>
 
       {/* Overlap Options Section */}
-      <div className="mt-8 pt-6 border-t border-border">
-        <label className="block text-sm font-medium text-textSecondary mb-3">
+      <div className="mt-5 pt-4 border-t border-border/60">
+        <label className="block text-sm font-medium text-textSecondary mb-2.5">
           אפשרות חפיפה בין שיעורים:
         </label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {OVERLAP_OPTIONS.map((opt) => {
             const isSelected = maxOverlapMinutes === opt.value;
             return (
@@ -146,7 +146,7 @@ export function PreferenceToggle({
                 type="button"
                 onClick={() => onChangeMaxOverlapMinutes(opt.value)}
                 className={classNames(
-                  "relative p-3 rounded-lg border text-right transition-all duration-200 flex flex-col justify-between gap-1 shadow-sm group cursor-pointer",
+                  "relative p-2.5 rounded-lg border text-right transition-all duration-200 flex flex-col justify-between gap-0.5 shadow-sm group cursor-pointer",
                   isSelected
                     ? "bg-primary/10 border-primary shadow-[0_0_12px_rgba(59,130,246,0.15)] ring-1 ring-primary/40"
                     : "bg-surfaceHighlight/40 border-border/80 text-textSecondary hover:border-primary/40 hover:text-textPrimary hover:bg-surfaceHighlight/70"
@@ -169,11 +169,11 @@ export function PreferenceToggle({
         </div>
       </div>
 
-      <div className="mt-8 pt-6 border-t border-border">
-        <label className="block text-sm font-medium text-textSecondary mb-4">
+      <div className="mt-5 pt-4 border-t border-border/60">
+        <label className="block text-sm font-medium text-textSecondary mb-2.5">
           בחר שעת התחלה מועדפת לכל יום (אופציונלי):
         </label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {DAYS_OF_WEEK.map(day => (
             <div key={day.id} className="flex flex-col gap-1.5">
               <span className="text-sm font-medium">{day.label}</span>

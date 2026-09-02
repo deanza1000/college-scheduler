@@ -65,9 +65,12 @@ def run_automated_ui(url: str):
         print(f"🌐 Navigating to {url}...")
         page.goto(url)
 
+        print("🛡️ Waiting for Cloudflare Turnstile access gate to clear...")
+        search_input = page.locator("div.input-base input[type='text']")
+        search_input.wait_for(state="visible", timeout=30000)
+
         # 1. Search and select courses
         target_courses = ["61763", "61776", "61179", "61180", "61773"]
-        search_input = page.locator("div.input-base input[type='text']")
         first_option = page.locator("div.absolute.top-full div.cursor-pointer").first
 
         for cid in target_courses:
@@ -94,9 +97,8 @@ def run_automated_ui(url: str):
         page.wait_for_timeout(500)
 
         # 4. Trigger schedule generation
-        print("⏳ Waiting for automated security verification check...")
+        print("⏳ Submitting schedule generation request...")
         generate_btn = page.locator("button:has-text('צור מערכת שעות אופטימלית')")
-        # Playwright automatically waits for the button to become enabled
         generate_btn.click()
         print("🚀 Generated Schedule request submitted successfully!")
 
