@@ -65,7 +65,7 @@ college-scheduler/
 │   │   │   ├── CourseSelectionHeader.tsx # Header controls, search & filters
 │   │   │   ├── Footer.tsx            # App footer with GitHub repository link & branding
 │   │   │   ├── MarkdownRenderer.tsx  # Rich text & markdown formatter for AI responses
-│   │   │   ├── PreferenceToggle.tsx  # Optimization mode selector (Mode A / Mode B)
+│   │   │   ├── PreferenceToggle.tsx  # Constraint/preference accordion (days, overlap tolerance, start times)
 │   │   │   └── ResultsTable.tsx      # Interactive weekly schedule grid & details drawer
 │   │   └── assets/
 │   ├── public/
