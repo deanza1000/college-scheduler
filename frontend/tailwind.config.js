@@ -11,11 +11,13 @@ export default {
         surface: '#18181b', // Zinc 900
         surfaceHighlight: '#27272a', // Zinc 800
         primary: '#3b82f6', // Blue 500
+        'primary-light': '#60a5fa', // Blue 400
         primaryHover: '#2563eb', // Blue 600
         textPrimary: '#f4f4f5', // Zinc 50
         textSecondary: '#a1a1aa', // Zinc 400
         border: '#27272a', // Zinc 800 (sleeker borders)
         danger: '#ef4444', // Red 500
+        'danger-light': '#f87171', // Red 400
         dangerHover: '#dc2626',
         success: '#22c55e', // Green 500
       },
