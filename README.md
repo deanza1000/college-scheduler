@@ -35,6 +35,7 @@ Finding an optimal schedule without time conflicts, minimized campus days, and a
   - **Mode A (Minimize Days)**: Minimizes active days on campus and penalizes awkward window gaps between classes.
   - **Mode B (Exclude Days)**: Allows blocking specific weekdays off completely (e.g. reserving Sundays or Thursdays for work).
   - **Custom Start Times**: Custom preferred daily start times for every single day.
+  - **Preference Feedback**: When the best schedule found still violates a soft preference (classes on an excluded day, more campus days than requested, or a day starting earlier than the preferred time), the UI shows a Hebrew notice explaining what could not be met and suggests re-running the generator.
 
 - 🤖 **Professor Orca AI Assistant**:
   - Powered by **Google Gemini AI** with function calling against the [**braude-mcp**](https://github.com/oshriagronov/braude-mcp) MCP server.

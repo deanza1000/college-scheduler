@@ -45,11 +45,20 @@ def run_scheduler(year: str, semester: str, course_ids: list, exclude_days: list
     )
 
     schedule = engine.format_schedule(best_state)
+    preference_report = engine.evaluate_preferences(best_state)
 
     return {
         "success": True,
         "schedule": schedule,
         "warnings": {
-            "has_hard_violations": has_hard_violations
+            "has_hard_violations": has_hard_violations,
+            "preferences_met": preference_report["preferences_met"],
+            "preference_issues": {
+                "excluded_days_used": preference_report["excluded_days_used"],
+                "days_on_campus": preference_report["days_on_campus"],
+                "preferred_num_days": preference_report["preferred_num_days"],
+                "exceeds_preferred_days": preference_report["exceeds_preferred_days"],
+                "early_start_days": preference_report["early_start_days"],
+            }
         }
     }

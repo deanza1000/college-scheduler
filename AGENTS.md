@@ -30,6 +30,7 @@ Welcome to **Professor Orca (College Scheduler)**. This document establishes the
 - **Framework**: Python 3.10+ with FastAPI, Uvicorn, and Pydantic
 - **Data Caching**: Ephemeral SQLite database cached in `/tmp/braude_cached.sqlite` with 1-hour TTL (`CACHE_TTL_SECONDS = 3600`) and in-memory dict caching
 - **Optimization Algorithm**: Simulated Annealing (`CourseSchedulerSA` in `optimizer_engine.py`)
+- **Preference Report**: `CourseSchedulerSA.evaluate_preferences(state)` inspects the final state and reports unmet soft preferences (excluded days used, campus days above `preferred_num_days`, days starting before the preferred start time). `web_generate_schedule.py` returns it under `warnings.preferences_met` / `warnings.preference_issues`; `App.tsx` renders a Hebrew notice when `preferences_met` is `false`.
 - **AI & Function Calling**: Google Gemini API integration with MCP function calling (`https://braude-mcp.oshri-mcp.workers.dev/mcp`)
 - **PDF Extraction**: `pypdf` for live downloading and parsing course syllabus PDFs
 - **Text Processing**: `python-bidi` for Hebrew right-to-left string handling

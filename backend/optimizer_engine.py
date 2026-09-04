@@ -301,6 +301,60 @@ class CourseSchedulerSA:
         avg_delta = total_delta / worse_moves
         return -avg_delta / math.log(0.8)
 
+    def evaluate_preferences(self, state: Dict[str, Dict[str, str]]) -> Dict[str, Any]:
+        """
+        Inspect a final state and report which user preferences (soft constraints) it fails to satisfy.
+        Checks: sessions on excluded days, campus days exceeding preferred_num_days,
+        and days whose first session starts earlier than the user's preferred start time.
+        Returns a dict with 'preferences_met' plus per-preference details.
+        """
+        active_sessions = []
+        for course_id, activities in state.items():
+            if course_id not in self.courses_data:
+                continue
+            for activity_type, instance_id in activities.items():
+                if activity_type in self.courses_data[course_id] and instance_id in self.courses_data[course_id][activity_type]:
+                    active_sessions.extend(self.courses_data[course_id][activity_type][instance_id])
+
+        day_first_start: Dict[str, int] = {}
+        for s in active_sessions:
+            day = s.get('day')
+            if not day:
+                continue
+            start = self.time_to_minutes(s['start_time'])
+            if day not in day_first_start or start < day_first_start[day]:
+                day_first_start[day] = start
+
+        excluded_days_used = [d for d in self.exclude_days if d in day_first_start]
+
+        days_on_campus = len(day_first_start)
+        exceeds_preferred_days = (
+            self.preferred_num_days is not None and days_on_campus > self.preferred_num_days
+        )
+
+        early_start_days = []
+        for day, preferred_str in self.preferred_start_times.items():
+            if day in day_first_start:
+                actual = day_first_start[day]
+                preferred = self.time_to_minutes(preferred_str)
+                if actual < preferred:
+                    early_start_days.append({
+                        "day": day,
+                        "actual_start": f"{actual // 60:02d}:{actual % 60:02d}",
+                        "preferred_start": preferred_str,
+                    })
+
+        preferences_met = not (excluded_days_used or exceeds_preferred_days or early_start_days)
+
+        return {
+            "preferences_met": preferences_met,
+            "excluded_days_used": excluded_days_used,
+            "days_on_campus": days_on_campus,
+            "preferred_num_days": self.preferred_num_days,
+            "exceeds_preferred_days": exceeds_preferred_days,
+            "early_start_days": early_start_days,
+        }
+
     def format_schedule(self, state: Dict[str, Dict[str, str]]) -> Dict[str, List[Dict[str, Any]]]:
         """
         Convert the raw state (course -> activity -> instance) into a day-by-day chronologically ordered schedule.
