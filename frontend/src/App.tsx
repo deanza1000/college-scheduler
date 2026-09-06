@@ -207,6 +207,34 @@ function App() {
             </div>
           )}
 
+          {results?.warnings?.preferences_met === false && !isGenerating && (() => {
+            const issues = results.warnings.preference_issues;
+            return (
+              <div className="bg-amber-500/10 border border-amber-500/50 text-amber-500 p-4 rounded-md space-y-2 text-sm max-w-4xl mx-auto w-full mb-3 md:mb-4">
+                <h3 className="font-bold flex items-center gap-2">
+                  <AlertTriangle size={18} /> לא נמצאה מערכת שתואמת את כל ההעדפות שלך
+                </h3>
+                <p>המערכת הפיקה את הפתרון הטוב ביותר שמצאה, אך הוא אינו עומד באילוצים הבאים:</p>
+                {issues && (
+                  <ul className="list-disc pr-5 space-y-1">
+                    {issues.excluded_days_used.length > 0 && (
+                      <li>יש שיעורים בימים שסימנת כלא זמינים: {issues.excluded_days_used.join(', ')}</li>
+                    )}
+                    {issues.exceeds_preferred_days && issues.preferred_num_days !== null && (
+                      <li>המערכת דורשת {issues.days_on_campus} ימי הגעה לקמפוס, במקום מקסימום {issues.preferred_num_days} שביקשת</li>
+                    )}
+                    {issues.early_start_days.map(d => (
+                      <li key={d.day}>יום {d.day} מתחיל ב-{d.actual_start}, מוקדם מהשעה המועדפת ({d.preferred_start})</li>
+                    ))}
+                  </ul>
+                )}
+                <p className="text-amber-400/90">
+                  אם לדעתך קיימת מערכת טובה יותר, מומלץ להריץ את המחולל שוב — כל הרצה עשויה להניב תוצאה שונה.
+                </p>
+              </div>
+            );
+          })()}
+
           {isGenerating ? (
             <div className="card p-8 flex flex-col items-center justify-center min-h-[240px]">
               <Loader2 className="animate-spin text-primary mb-4" size={48} />

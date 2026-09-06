@@ -30,6 +30,7 @@ Welcome to **Professor Orca (College Scheduler)**. This document establishes the
 - **Framework**: Python 3.10+ with FastAPI, Uvicorn, and Pydantic
 - **Data Caching**: Ephemeral SQLite database cached in `/tmp/braude_cached.sqlite` with 1-hour TTL (`CACHE_TTL_SECONDS = 3600`) and in-memory dict caching
 - **Optimization Algorithm**: Simulated Annealing (`CourseSchedulerSA` in `optimizer_engine.py`)
+- **Preference Report**: `CourseSchedulerSA.evaluate_preferences(state)` inspects the final state and reports unmet soft preferences (excluded days used, campus days above `preferred_num_days`, days starting before the preferred start time). `web_generate_schedule.py` returns it under `warnings.preferences_met` / `warnings.preference_issues`; `App.tsx` renders a Hebrew notice when `preferences_met` is `false`.
 - **AI & Function Calling**: Google Gemini API integration with MCP JSON-RPC tools (`https://braude-mcp.oshri-mcp.workers.dev/mcp`): `search_courses`, `get_course_schedule`, `get_course_syllabus`, `get_academic_calendar`
 - **Syllabus data**: Ingested PDF text and parsed sections (`syllabus.attendance`, `syllabus.grading`, `syllabus.topics`, `syllabusText`) come from MCP. This backend must never fetch `syllabusUrl` or scrape `info.braude.ac.il` / `w3.braude.ac.il`.
 - **Text Processing**: `python-bidi` for Hebrew right-to-left string handling
@@ -65,7 +66,7 @@ college-scheduler/
 │   │   │   ├── CourseSelectionHeader.tsx # Header controls, search & filters
 │   │   │   ├── Footer.tsx            # App footer with GitHub repository link & branding
 │   │   │   ├── MarkdownRenderer.tsx  # Rich text & markdown formatter for AI responses
-│   │   │   ├── PreferenceToggle.tsx  # Optimization mode selector (Mode A / Mode B)
+│   │   │   ├── PreferenceToggle.tsx  # Constraint/preference accordion (days, overlap tolerance, start times)
 │   │   │   └── ResultsTable.tsx      # Interactive weekly schedule grid & details drawer
 │   │   └── assets/
 │   ├── public/

@@ -111,5 +111,32 @@ def run_test():
     else:
         print("❌ FAILED: The engine did not consistently schedule fewer days when requested.")
 
+def run_preference_report_test():
+    """Verify evaluate_preferences() flags unmet soft preferences on a known state."""
+    print("\n--- Testing evaluate_preferences() ---")
+    data = {
+        "c1": {"הרצאה": {
+            "early_sun": [{"start_time": "08:30", "end_time": "10:00", "day": "ראשון"}],
+            "late_tue":  [{"start_time": "10:00", "end_time": "12:00", "day": "שלישי"}],
+        }}
+    }
+    engine = CourseSchedulerSA(
+        data, {}, exclude_days=["ראשון"], preferred_num_days=1,
+        preferred_start_times={"ראשון": "09:00"}
+    )
+    bad = engine.evaluate_preferences({"c1": {"הרצאה": "early_sun"}})
+    good = engine.evaluate_preferences({"c1": {"הרצאה": "late_tue"}})
+
+    assert bad["preferences_met"] is False
+    assert bad["excluded_days_used"] == ["ראשון"]
+    assert bad["exceeds_preferred_days"] is False  # 1 day <= preferred 1
+    assert bad["early_start_days"] == [{"day": "ראשון", "actual_start": "08:30", "preferred_start": "09:00"}]
+
+    assert good["preferences_met"] is True
+    assert good["excluded_days_used"] == []
+    assert good["early_start_days"] == []
+    print("✅ SUCCESS: evaluate_preferences() reports unmet preferences correctly")
+
 if __name__ == "__main__":
+    run_preference_report_test()
     run_test()

@@ -26,11 +26,27 @@ export interface Event {
   course_id?: string;
 }
 
+export interface EarlyStartDay {
+  day: string;
+  actual_start: string;
+  preferred_start: string;
+}
+
+export interface PreferenceIssues {
+  excluded_days_used: string[];
+  days_on_campus: number;
+  preferred_num_days: number | null;
+  exceeds_preferred_days: boolean;
+  early_start_days: EarlyStartDay[];
+}
+
 export interface ScheduleResponse {
   schedule: Record<string, Event[]>;
   warnings?: {
     invalid_courses?: string[];
     has_hard_violations?: boolean;
+    preferences_met?: boolean;
+    preference_issues?: PreferenceIssues;
   };
   error?: string;
 }
