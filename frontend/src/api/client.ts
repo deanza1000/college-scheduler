@@ -184,6 +184,44 @@ export async function generateSchedule(payload: ScheduleRequest): Promise<Schedu
   }
 }
 
+export interface SyllabusContent {
+  attendance?: string;
+  grading?: string;
+  exam?: string;
+  topics?: string;
+  objectives?: string;
+  learningOutcomes?: string;
+  requirements?: string;
+  teachingMethods?: string;
+  bibliography?: string;
+  aiPolicy?: string;
+}
+
+export interface CourseGroup {
+  groupNumber: string;
+  groupType: string;
+  groupTypeHebrew: string;
+  instructor: string;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+}
+
+export interface CourseDetail {
+  courseCode: string;
+  courseName: string;
+  department?: string;
+  credits: number;
+  description?: string;
+  prerequisites?: string[];
+  syllabusUrl?: string;
+  syllabusText?: string;
+  syllabus?: SyllabusContent;
+  groups?: CourseGroup[];
+  fetchedAt: string;
+}
+
 export interface ChatMessagePayload {
   role: 'user' | 'assistant';
   content: string;

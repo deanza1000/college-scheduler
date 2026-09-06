@@ -38,12 +38,11 @@ Finding an optimal schedule without time conflicts, minimized campus days, and a
 
 - 🤖 **Professor Orca AI Assistant**:
   - Powered by **Google Gemini AI** with function calling against the [**braude-mcp**](https://github.com/oshriagronov/braude-mcp) MCP server.
-  - Live tools for course search, weekly course schedules, academic calendars (semesters, exams, holidays), and syllabus PDF scanning.
+  - MCP tools only: course search, weekly schedules, ingested syllabi (attendance, grading, topics), and academic calendars.
   - Full **Markdown Rendering** support with rich code blocks, tables, lists, formatted text, and one-click answer copying.
 
-- 📄 **Live Syllabus PDF Extraction**:
-  - Live downloading and text parsing of course syllabus PDFs (`pypdf`).
-  - Answers questions on mandatory attendance rules (*חובת נוכחות*), grade composition, homework policy, exam structures, and textbook recommendations.
+- 📄 **Ingested Syllabus Answers**:
+  - Attendance (*חובת נוכחות*), grade composition, exams, and topics are read from MCP fields (`syllabus.attendance`, `syllabusText`) — never by downloading college PDFs.
 
 - 🎨 **Modern Dark Glassmorphism UI**:
   - Built with React 19, TypeScript, Tailwind CSS, and Lucide React icons.
@@ -106,11 +105,12 @@ The AI assistant does not scrape Braude pages itself. It calls **[braude-mcp](ht
 
 Professor Orca’s backend (`backend/app.py`) sends JSON-RPC `tools/call` requests to that endpoint when Gemini selects a tool. The MCP server currently provides:
 
-- **`search_courses`** — find courses by name, code, or department
-- **`get_course_schedule`** — lectures, labs, instructors, rooms, times, and syllabus URL for a course code
+- **`search_courses`** — catalog lookup by name, code, or department (not a full syllabus)
+- **`get_course_schedule`** — weekly groups (lectures, labs, instructors, rooms, times) plus ingested syllabus fields when available
+- **`get_course_syllabus`** — parsed syllabus sections (`attendance`, `grading`, `exam`, `topics`, …) and full ingested PDF text
 - **`get_academic_calendar`** — semester dates, exam periods, registration windows, holidays
 
-Syllabus PDFs are downloaded and parsed in this backend (`pypdf`) after MCP returns a syllabus URL. The scheduler’s course catalog still comes from the cached Braude SQLite database (`data_service.py`). MCP is the live data plane for the chatbot.
+This client **never** downloads `syllabusUrl` PDFs and never scrapes `info.braude.ac.il` or `w3.braude.ac.il`. Attendance answers prefer `syllabus.attendance`, then a search of `syllabusText`; if both are missing, the assistant says the published syllabus does not state attendance. The scheduler’s course catalog still comes from the cached Braude SQLite database (`data_service.py`). MCP is the live data plane for the chatbot.
 
 ---
 

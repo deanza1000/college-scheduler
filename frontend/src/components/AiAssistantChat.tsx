@@ -28,10 +28,10 @@ interface DisplayMessage {
 }
 
 const QUICK_PROMPTS = [
-  { label: "📋 חובת נוכחות 61767", prompt: "האם יש חובת נוכחות בקורס 61767 לפי הסילבוס?" },
+  { label: "📋 חובת נוכחות 62005", prompt: "האם יש חובת נוכחות בקורס 62005 לפי הסילבוס?" },
   { label: "📅 מתי מתחיל סמסטר ב'?", prompt: "מתי מתחיל סמסטר ב' לפי הלוח האקדמי בבראודה?" },
   { label: "🔍 חפש קורס אלגברה", prompt: "חפש קורסים בנושא אלגברה בבראודה" },
-  { label: "⏱️ לוח זמנים קורס 61101", prompt: "מה הלוח זמנים והשעות של קורס 61101?" }
+  { label: "⏱️ לוח זמנים קורס 61767", prompt: "מה הלוח זמנים והשעות של קורס 61767?" }
 ];
 
 export interface AiAssistantChatProps {
@@ -87,7 +87,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
     {
       id: 'welcome-1',
       role: 'assistant',
-      content: 'שלום! אני פרופסור אורקה 🐋 – העוזר האקדמי האישי שלך במכללת אורט בראודה.\n\nאני מחובר ישירות ל-MCP של מכללת בראודה ומסוגל לסרוק קובצי סילבוס (PDF), לבדוק חובת נוכחות בקורסים, להציג את הלוח האקדמי ולסייע בבחירת מערכת שעות.\n\nאיזה מידע, קורס או סילבוס תרצה לבדוק היום?',
+      content: 'שלום! אני פרופסור אורקה 🐋 – העוזר האקדמי האישי שלך במכללת אורט בראודה.\n\nאני מחובר ישירות ל-MCP של מכללת בראודה ויכול לחפש קורסים, לקרוא סילבוסים שנקלטו (חובת נוכחות, הרכב ציון ונושאים), להציג לוח זמנים שבועי ואת הלוח האקדמי.\n\nאיזה מידע, קורס או סילבוס תרצה לבדוק היום?',
       timestamp: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -187,9 +187,9 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({
     } else if (tool.name === 'get_course_schedule') {
       icon = <BookOpen className="w-3 h-3 text-purple-400" />;
       label = `לוח זמנים קורס ${tool.args.courseCode || ''}`;
-    } else if (tool.name === 'scan_syllabus_pdf') {
+    } else if (tool.name === 'get_course_syllabus') {
       icon = <FileText className="w-3 h-3 text-amber-400" />;
-      label = `סריקת סילבוס (PDF) ${tool.args.courseCode || ''}`;
+      label = `סילבוס קורס ${tool.args.courseCode || ''}`;
     }
 
     return (

@@ -12,7 +12,7 @@ Welcome to **Professor Orca (College Scheduler)**. This document establishes the
 
 **Professor Orca** is an intelligent academic scheduling system designed for Ort Braude College students. It consists of two main pillars:
 1. **Automated Schedule Optimization Engine**: Powered by Simulated Annealing, solving multi-objective constraints to generate conflict-free academic schedules based on student preferences (minimizing campus days, excluding specific days, and matching daily start times).
-2. **Professor Orca AI Assistant**: A Gemini-powered AI chatbot equipped with Model Context Protocol (MCP) tools to parse course syllabi, answer questions regarding attendance policy (*חובת נוכחות*), grading rubrics, course schedules, and academic calendars.
+2. **Professor Orca AI Assistant**: A Gemini-powered AI chatbot that calls Braude MCP tools only (`search_courses`, `get_course_schedule`, `get_course_syllabus`, `get_academic_calendar`) to answer questions regarding attendance policy (*חובת נוכחות*), grading rubrics, course schedules, and academic calendars. The client never downloads syllabus PDFs or scrapes college sites.
 
 ---
 
@@ -30,8 +30,8 @@ Welcome to **Professor Orca (College Scheduler)**. This document establishes the
 - **Framework**: Python 3.10+ with FastAPI, Uvicorn, and Pydantic
 - **Data Caching**: Ephemeral SQLite database cached in `/tmp/braude_cached.sqlite` with 1-hour TTL (`CACHE_TTL_SECONDS = 3600`) and in-memory dict caching
 - **Optimization Algorithm**: Simulated Annealing (`CourseSchedulerSA` in `optimizer_engine.py`)
-- **AI & Function Calling**: Google Gemini API integration with MCP function calling (`https://braude-mcp.oshri-mcp.workers.dev/mcp`)
-- **PDF Extraction**: `pypdf` for live downloading and parsing course syllabus PDFs
+- **AI & Function Calling**: Google Gemini API integration with MCP JSON-RPC tools (`https://braude-mcp.oshri-mcp.workers.dev/mcp`): `search_courses`, `get_course_schedule`, `get_course_syllabus`, `get_academic_calendar`
+- **Syllabus data**: Ingested PDF text and parsed sections (`syllabus.attendance`, `syllabus.grading`, `syllabus.topics`, `syllabusText`) come from MCP. This backend must never fetch `syllabusUrl` or scrape `info.braude.ac.il` / `w3.braude.ac.il`.
 - **Text Processing**: `python-bidi` for Hebrew right-to-left string handling
 
 ### Testing (`/testing`)
@@ -117,4 +117,17 @@ The following environment variables are utilized by the system:
 - `GEMINI_API_KEY`: Key for Google Gemini AI inference.
 - `TURNSTILE_SECRET_KEY`: Cloudflare Turnstile siteverify secret key (also used to HMAC-sign 8-hour site clearance tokens from `POST /api/verify`).
 - `BRAUDE_DB_URL`: Remote URL to the latest Braude course database.
-- `BRAUDE_MCP_URL`: Endpoint for Braude MCP server (`https://braude-mcp.oshri-mcp.workers.dev/mcp`).
+- `BRAUDE_MCP_URL`: Endpoint for Braude MCP server (`https://braude-mcp.oshri-mcp.workers.dev/mcp`). Local Worker: `http://127.0.0.1:8787/mcp`.
+
+---
+
+## 6. Braude MCP Client Rules
+
+The AI chat path is an MCP **client**. Course data is already scraped into the Worker database.
+
+- Allow-list only: `get_academic_calendar`, `search_courses`, `get_course_schedule`, `get_course_syllabus`.
+- `search_courses` is a catalog lookup (name, code, department). It is not a full syllabus.
+- Attendance / exam / topics answers must come from `get_course_syllabus` (`syllabus.attendance`, then `syllabusText`). Do not invent missing fields.
+- `groups: []` means hours are unpublished; do not invent times.
+- Missing `syllabus` / `syllabusText` means no public PDF was ingested; say so.
+- If `tools/list` does not include `get_course_syllabus`, the client is still pointed at an old Worker.

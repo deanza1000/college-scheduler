@@ -4,5 +4,4 @@ pydantic
 httpx
 python-bidi
 python-dotenv
-pypdf
 

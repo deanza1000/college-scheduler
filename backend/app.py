@@ -1,6 +1,4 @@
 import os
-import io
-import json
 import hmac
 import hashlib
 import secrets
@@ -8,8 +6,7 @@ import time
 import logging
 import httpx
 import uvicorn
-import pypdf
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, TypedDict
 from fastapi import FastAPI, HTTPException, status, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -56,10 +53,56 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
 
+
+class SyllabusContent(TypedDict, total=False):
+    attendance: str
+    grading: str
+    exam: str
+    topics: str
+    objectives: str
+    learningOutcomes: str
+    requirements: str
+    teachingMethods: str
+    bibliography: str
+    aiPolicy: str
+
+
+class CourseGroup(TypedDict):
+    groupNumber: str
+    groupType: str
+    groupTypeHebrew: str
+    instructor: str
+    dayOfWeek: str
+    startTime: str
+    endTime: str
+    location: str
+
+
+class CourseDetail(TypedDict, total=False):
+    courseCode: str
+    courseName: str
+    department: str
+    credits: float
+    description: str
+    prerequisites: List[str]
+    syllabusUrl: str
+    syllabusText: str
+    syllabus: SyllabusContent
+    groups: List[CourseGroup]
+    fetchedAt: str
+
+
+ALLOWED_MCP_TOOLS = frozenset({
+    "get_academic_calendar",
+    "search_courses",
+    "get_course_schedule",
+    "get_course_syllabus",
+})
+
 MCP_TOOL_DECLARATIONS = [
     {
         "name": "get_academic_calendar",
-        "description": "Fetches and parses the academic calendar from Ort Braude College (semester start/end, exam periods, holidays).",
+        "description": "Returns the scraped academic calendar (semester dates, exam periods, holidays). Never live-fetches college pages.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
@@ -72,17 +115,17 @@ MCP_TOOL_DECLARATIONS = [
     },
     {
         "name": "search_courses",
-        "description": "Searches for courses in Braude public schedule system by keyword, course code, or department name.",
+        "description": "Catalog lookup only: find courses by keyword, course code, or department. Returns names and codes. Does not include full syllabus text. For attendance, exams, grading, topics, or weekly hours, call get_course_syllabus or get_course_schedule with the courseCode.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
                 "query": {
                     "type": "STRING",
-                    "description": 'Search keyword or course code (e.g., אלגברה or 61101)'
+                    "description": 'Search keyword or course code (e.g., אלגברה or 62005)'
                 },
                 "department": {
                     "type": "STRING",
-                    "description": "Optional department filter name"
+                    "description": "Optional department filter name (e.g. הנדסת תוכנה)"
                 }
             },
             "required": ["query"]
@@ -90,94 +133,97 @@ MCP_TOOL_DECLARATIONS = [
     },
     {
         "name": "get_course_schedule",
-        "description": "Retrieves detailed schedule info for a course, including lectures, labs, instructors, time slots, classrooms, and syllabus URL.",
+        "description": "Weekly lecture/lab/recitation slots, instructors, rooms, credits, description, and ingested syllabus fields (syllabus.attendance, syllabus.grading, syllabus.topics, syllabusText). groups may be empty if hours are unpublished. Do not fetch syllabusUrl.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
                 "courseCode": {
                     "type": "STRING",
-                    "description": 'Unique course code (e.g., 61101)'
+                    "description": "Unique course code (e.g., 61767 or 62005)"
                 }
             },
             "required": ["courseCode"]
         }
     },
     {
-        "name": "scan_syllabus_pdf",
-        "description": "Fetches and scans/reads the full text content of a course syllabus PDF. Mandatory to use whenever asked if attendance is required (חובת נוכחות), or about grading rules, homework policy, exam structure, course topics, or textbooks.",
+        "name": "get_course_syllabus",
+        "description": "Use this to answer attendance (חובת נוכחות), exam and grading rules (הרכב הציון), topics (נושאי הלימוד), objectives, AI policy, and other syllabus rules. Returns ingested PDF text plus parsed sections. Do not download the PDF or follow syllabusUrl.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
                 "courseCode": {
                     "type": "STRING",
-                    "description": 'Course code (e.g., 61101, 61767) to find and scan its syllabus PDF.'
-                },
-                "url": {
-                    "type": "STRING",
-                    "description": "Direct URL of the syllabus PDF file if already known."
+                    "description": "Unique course code (e.g., 61767 or 62005)"
                 }
-            }
+            },
+            "required": ["courseCode"]
         }
     }
 ]
 
 SYSTEM_INSTRUCTION_TEXT = """אתה פרופסור אורקה AI - עוזר אקדמי אישי ואינטליגנטי של סטודנטים במכללת אורט בראודה (Ort Braude College).
 
-כלי ה-MCP הזמינים:
-1. get_academic_calendar: אחזור תאריכים אקדמיים (סמסטרים, תקופות בחינות, הרשמה, חופשות).
-2. search_courses: חיפוש קורסים לפי מילת מפתח, קוד קורס או שם מחלקה.
-3. get_course_schedule: אחזור לוח זמנים מפורט עבור קורס (הרצאות, מעבדות, תרגולים, מרצים, כיתות ושעות).
-4. scan_syllabus_pdf: סריקת קובץ סילבוס PDF של קורס (חובת נוכחות, הרכב ציון, מטלות וכד').
+כלי ה-MCP הזמינים (יש לקרוא לכלים האלה בלבד; אין להוריד PDF ואין לגשת לאתרי המכללה):
+1. get_academic_calendar: תאריכים אקדמיים (סמסטרים, תקופות בחינות, הרשמה, חופשות). ארגומנט אופציונלי: year.
+2. search_courses: חיפוש קטלוגי בלבד לפי מילת מפתח, קוד קורס או מחלקה. אינו כולל סילבוס מלא.
+3. get_course_schedule: לוח שבועי (קבוצות, מרצים, כיתות, שעות) וגם שדות סילבוס שכבר נקלטו.
+4. get_course_syllabus: מדיניות הקורס — חובת נוכחות, הרכב ציון, בחינה, נושאים, מדיניות AI, וטקסט הסילבוס שנקלט.
 
-משאבי MCP זמינים:
-- braude://calendar/current: קריאה ישירה של הלוח האקדמי הנוכחי בפורמט JSON.
+כללי הפעלה מחייבים:
 
-כללי הפעלה מחייבים ל-AI:
+1. תהליך טיפול בפניות לגבי קורסים:
+   - אם המשתמש מזין שם קורס ללא קוד (למשל "אלגברה ליניארית"), קרא תחילה ל-search_courses(query="<שם הקורס>").
+   - חלץ את קוד הקורס המדויק (5 ספרות) מתוצאות החיפוש.
+   - לשאלות מדיניות (חובת נוכחות, ציון, בחינה, נושאים, AI): קרא ל-get_course_syllabus(courseCode="<קוד>").
+   - לשעות שבועיות / מרצה / כיתה: קרא ל-get_course_schedule(courseCode="<קוד>"). כלי זה כולל גם שדות סילבוס, ולכן קריאה אחת עשויה להספיק.
+   - אם המשתמש מספק קוד בן 5 ספרות, דלג על החיפוש וקרא ישירות לכלי המתאים.
+   - אל תתייחס לתוצאות search_courses כסילבוס מלא.
 
-1. תהליך טיפול בפניות לגבי קורסים (Workflow for Course Inquiries):
-   - אם המשתמש מזין שם קורס ללא קוד (למשל "אלגברה ליניארית"), יש לקרוא תחילה לכלי search_courses(query="<שם הקורס>").
-   - חלץ את קוד הקורס המדויק (5 ספרות) מתוך תוצאות החיפוש, ואז קרא לכלי get_course_schedule(courseCode="<קוד הקורס>").
-   - אם המשתמש מספק קוד קורס בן 5 ספרות (כגון 61101), קרא ישירות לכלי get_course_schedule.
+2. חובת נוכחות:
+   - קרא ל-get_course_syllabus עם קוד הקורס.
+   - העדף את syllabus.attendance כלשונו מה-PDF.
+   - אם חסר, חפש ב-syllabusText את המילים נוכחות, חובת נוכחות, attendance.
+   - אם שניהם חסרים, אמור שהסילבוס שפורסם אינו מציין נוכחות. אסור לנחש.
 
-2. תהליך טיפול בפניות לגבי הלוח האקדמי (Calendar Inquiries):
-   - לשאלות בנוגע לתאריכי סמסטרים, תאריכי בחינות, מועדי הרשמה או חופשות - השתמש בכלי get_academic_calendar או קרא את המשאב braude://calendar/current.
+3. בחינות / נושאים / הרכב ציון:
+   - ציון ומשקלות: syllabus.grading ואז syllabus.exam, אחרת syllabusText.
+   - נושאים: syllabus.topics ואז syllabusText / description.
+   - שעות שבועיות: groups מכל אחד מכלי הקורס.
 
-3. עיצוב התשובה (Output Formatting):
-   - הבדל בבירור בין הרצאות (הרצאה) לבין מעבדות/תרגולים (מעבדה/תרגול).
+4. מצבים ריקים:
+   - groups: [] — השעות לא פורסמו; אין להמציא זמנים.
+   - אין syllabus ואין syllabusText — לא נקלט PDF ציבורי; יש לומר זאת במפורש.
+   - אם הכלי מחזיר isError, הצג את הטקסט שהתקבל. אל תנסה שוב על ידי הורדת URL של המכללה.
+
+5. לוח אקדמי:
+   - לשאלות על תאריכי סמסטרים, בחינות, הרשמה או חופשות השתמש ב-get_academic_calendar.
+
+6. איסורים מוחלטים:
+   - אסור להוריד syllabusUrl או קבצי PDF מ-info.braude.ac.il / w3.braude.ac.il.
+   - אסור לסרוק את FireFly או את לוח המכללה מהלקוח.
+   - אסור להמציא מרצים, ימים, נקודות זכות, כללי נוכחות או משקלות בחינה.
+
+7. עיצוב התשובה:
+   - הבדל בבירור בין הרצאות לבין מעבדות/תרגולים.
    - פרט מספרי קבוצות, שמות מרצים/מתרגלים, ימים, שעות ומיקומי כיתות בטבלאות עבריות נקיות או ברשימות מובנות.
    - ענה בעברית רהוטה, ברורה, מפורטת ומדויקת בלבד."""
 
 
-async def fetch_and_parse_pdf(pdf_url: str) -> str:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "application/pdf,application/xhtml+xml,text/html;q=0.9,*/*;q=0.8"
-    }
-    try:
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-            resp = await client.get(pdf_url, headers=headers)
-            if resp.status_code != 200:
-                return f"שגיאה בהורדת קובץ הסילבוס מהכתובת {pdf_url} (קוד סטטוס HTTP {resp.status_code})."
-            
-            pdf_bytes = resp.content
-            reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
-            num_pages = len(reader.pages)
-            extracted_text_parts = []
-            
-            for page_idx, page in enumerate(reader.pages):
-                p_text = page.extract_text() or ""
-                extracted_text_parts.append(f"--- עמוד {page_idx + 1} ---\n{p_text}")
-            
-            full_text = "\n\n".join(extracted_text_parts).strip()
-            if not full_text:
-                return f"הורד קובץ סילבוס PDF ({num_pages} עמודים), אך לא נשלף ממנו טקסט קריא."
-            
-            return f"סילבוס PDF נסרק בהצלחה מכתובת {pdf_url} ({num_pages} עמודים):\n\n{full_text}"
-    except Exception as e:
-        logger.error(f"Error parsing PDF from {pdf_url}: {e}")
-        return f"שגיאה בעת סריקת קובץ ה-PDF של הסילבוס: {str(e)}"
+def _mcp_text_from_result(result: Dict[str, Any]) -> str:
+    content_list = result.get("content", [])
+    if content_list and isinstance(content_list, list):
+        text_blocks = [item.get("text", "") for item in content_list if item.get("type") == "text"]
+        return "\n".join(text_blocks)
+    return str(result)
+
 
 async def call_mcp_tool(tool_name: str, tool_args: Dict[str, Any]) -> str:
+    """Call a Braude MCP tool over JSON-RPC. Never fetches college URLs or PDFs."""
+    if tool_name not in ALLOWED_MCP_TOOLS:
+        logger.warning("Rejected non-MCP tool call: %s", tool_name)
+        allowed = ", ".join(sorted(ALLOWED_MCP_TOOLS))
+        return f"הכלי {tool_name} אינו זמין. יש להשתמש רק ב: {allowed}."
+
     headers = {
         "Content-Type": "application/json",
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -192,19 +238,25 @@ async def call_mcp_tool(tool_name: str, tool_args: Dict[str, Any]) -> str:
             "arguments": tool_args
         }
     }
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(BRAUDE_MCP_URL, json=payload, headers=headers)
-        if resp.status_code != 200:
-            return f"Error executing tool {tool_name}: HTTP status {resp.status_code}"
-        data = resp.json()
-        if "error" in data:
-            return f"MCP Error: {data['error'].get('message', 'Unknown error')}"
-        result = data.get("result", {})
-        content_list = result.get("content", [])
-        if content_list and isinstance(content_list, list):
-            text_blocks = [item.get("text", "") for item in content_list if item.get("type") == "text"]
-            return "\n".join(text_blocks)
-        return str(result)
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(BRAUDE_MCP_URL, json=payload, headers=headers)
+            if resp.status_code != 200:
+                logger.error("MCP HTTP error for %s: %s %s", tool_name, resp.status_code, resp.text[:500])
+                return f"Error executing tool {tool_name}: HTTP status {resp.status_code}"
+            data = resp.json()
+    except Exception as e:
+        logger.error("MCP request failed for %s: %s", tool_name, e)
+        return f"MCP Error: {e}"
+
+    if "error" in data:
+        return f"MCP Error: {data['error'].get('message', 'Unknown error')}"
+    result = data.get("result", {})
+    text = _mcp_text_from_result(result)
+    if result.get("isError"):
+        logger.warning("MCP tool %s returned isError: %s", tool_name, text[:500])
+        return text or f"MCP tool {tool_name} reported an error."
+    return text
 
 
 class ScheduleRequest(BaseModel):
@@ -367,7 +419,7 @@ def generate_schedule_endpoint(
             detail=f"Internal scheduler error: {e}"
         )
 
-@app.post("/api/chat", summary="AI Chat Assistant with Ort Braude MCP Integration & PDF Syllabus Scanning")
+@app.post("/api/chat", summary="AI Chat Assistant with Ort Braude MCP Integration")
 async def chat_endpoint(
     req: ChatRequest,
     x_orca_clearance: Optional[str] = Header(default=None, alias="X-Orca-Clearance")
@@ -449,32 +501,14 @@ async def chat_endpoint(
                 "parts": parts
             })
 
-            # Process function calls against braude-mcp or internal tools
+            # Process function calls against braude-mcp only (no PDF / college URL fetches)
             for fc in function_calls:
                 t_name = fc.get("name")
                 t_args = fc.get("args", {})
                 tools_called.append({"name": t_name, "args": t_args})
 
                 logger.info(f"Invoking Tool: {t_name} with args: {t_args}")
-                if t_name == "scan_syllabus_pdf":
-                    pdf_url = t_args.get("url")
-                    course_code = t_args.get("courseCode")
-
-                    if not pdf_url and course_code:
-                        sched_output = await call_mcp_tool("get_course_schedule", {"courseCode": course_code})
-                        try:
-                            sched_json = json.loads(sched_output)
-                            if isinstance(sched_json, dict) and sched_json.get("syllabusUrl"):
-                                pdf_url = sched_json["syllabusUrl"]
-                        except Exception:
-                            pass
-
-                    if pdf_url:
-                        tool_output = await fetch_and_parse_pdf(pdf_url)
-                    elif course_code:
-                        tool_output = f"לא נמצא קישור לסילבוס זמין עבור קורס {course_code} במערכת."
-                else:
-                    tool_output = await call_mcp_tool(t_name, t_args)
+                tool_output = await call_mcp_tool(t_name, t_args)
 
                 # Append function response to contents with role 'user' for Gemini 3.5 API
                 contents.append({
